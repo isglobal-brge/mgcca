@@ -12,25 +12,18 @@ library(pracma)
 ####################################
 #### prepare Xi and Ki matrices ####
 
-load("data.RData")
+load("cardiovascular.RData")
 
-X3ori<-remove.vars(X3ori,c("CD8T","Bcell")) # remove these variables (they have lot of zeros).
-X2ori<-rename.vars(X2ori,c("total_Cholesterol","LDL_Cholesterol","HDL_cholesterol","BMI","cintura","glucosa"),c("TC","LDL","HDL","BMI","cintura","Gluc"))
-
-X1<-na.omit(X1ori)
-X2<-na.omit(X2ori)
-X3<-na.omit(X3ori)
-dim(X1)
-dim(X2)
-dim(X3)
+# this is performing step 1,2 and 3 (just prepare data)
 
 rn<-sort(unique(c(rownames(X1),rownames(X2),rownames(X3))))
-m<-length(rn)
+m<-length(rn)  # get the maximum number of individuals 
 
 X1<-merge(data.frame(rn=rn),cbind(rn=rownames(X1),as.data.frame(X1)),by="rn",all.x=TRUE)
 rownames(X1)<-X1$rn
 X1<-remove.vars(X1,"rn")
-X1[ww<-apply(is.na(X1),1,all),]<-0
+ww<-apply(is.na(X1),1,all)
+X1[ww,]<-0
 K1<-matrix(0,nrow=m,ncol=m)
 diag(K1)[!ww]<-1
 
@@ -48,25 +41,20 @@ X3[ww<-apply(is.na(X3),1,all),]<-0
 K3<-matrix(0,nrow=m,ncol=m)
 diag(K3)[!ww]<-1
 
-X1<-scale(X1)
-X2<-scale(X2)
-X3<-scale(X3)
-
 X<-lapply(list(X1,X2,X3),as.matrix)
 K<-list(K1,K2,K3)
 
 #########################
 #### start algorithm ####
 
-n<-length(X)
-m<-nrow(X[[1]])
-p<-sapply(X,ncol)
-numvars<-min(p)
+n<-length(X) # number of tables
+m<-nrow(X[[1]]) # maximum number of different individuals
+p<-sapply(X,ncol) # number of variables per table
+numvars<-min(p) # minimum number of variables
 
 
 ## compute eigen values and vectors
 
-system.time({
 M<-Ksum<-matrix(0,nrow=m,ncol=m)
 for (i in 1:n){
   Xi<-X[[i]]
@@ -78,26 +66,24 @@ for (i in 1:n){
 Ksum05<-Ksum
 diag(Ksum05)<-diag(Ksum05)^(-.5)
 M<-Ksum05%*%M%*%Ksum05
-})
 
-system.time(eig<-eigen(M))
+
+eig<-eigen(M)
 Yast<-eig$vectors
 lambda<-eig$values
 Y<-sqrt(n)*Ksum05%*%Yast
 
 B<-A<-list()
-system.time({
 for (i in 1:n){
   Xi<-X[[i]]
   Ki<-K[[i]]
   B[[i]]<-pinv(t(Y)%*%Ki%*%Y)%*%t(Y)%*%Ki%*%Xi
   A[[i]]<-pinv(t(Xi)%*%Ki%*%Xi)%*%t(Xi)%*%Ki%*%Y
 }
-})
+
 
 
 As<-A    ## var(X*a)=1
-system.time({
 for (i in 1:n){
   Ai<-A[[i]]
   Xi<-X[[i]]
@@ -106,7 +92,7 @@ for (i in 1:n){
   vv<-cbind(rep(1,nrow(Ai)))%*%rbind(vv)
   As[[i]]<-A[[i]]*vv
 }
-})
+
 
 #### finish algorithm ####
 #########################
