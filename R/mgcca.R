@@ -1,24 +1,29 @@
-rm(list=ls())
-load("/Users/harryodell-mac/Desktop/GitHub/GCCA/data/cardiovascular.Rdata")
-x<-list(X1,X2,X3)
-rm(X1,X2,X3)
-
-
 # input x (list of matrices)
+# NOTE: missing values of some variables should be imputed (to be investigated)
 
-n<-length(x)
-for (i in 1:n) assign(paste0("X", i), x[[i]])
+mgcca <- function(x, mc.cores=1, ...) {
+  n<-length(x) # number of tables
+  
+  for (i in 1:n) assign(paste0("X", i), x[[i]])
+  
+  rn <- NULL
+  for (i in 1:n){
+  rn<- c(rn, rownames(get(paste0("X", i)))) 
+  }
+  rn<-sort(unique(rn))
+  m<-length(rn)  # get the maximum number of individuals 
+  
+  X <- K <- vector("list", n)
+  for (i in 1:n){
+    temp <- getK(get(paste0("X", i)), ids=rn, m=m)
+    X[[i]] <- as.matrix(temp$X)
+    K[[i]] <- temp$K
+  }
 
-
-n<-length(x)
-for (i in 1:n) {
-  assign(paste0("X", i), x[[i]])
+  p <- sapply(X, ncol) # number of variables per table
+  numvars <- min(p) # minimum number of variables
+  
+  ans <- list(X=X, K=K)
+  ans
 }
-
-
-
-
-
-rn<-sort(unique(c(rownames(X1),rownames(X2),rownames(X3)))) # unique elements 
-m<-length(rn)  # get the maximum number of individuals 
 
