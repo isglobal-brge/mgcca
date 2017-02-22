@@ -2,6 +2,7 @@
 # NOTE: missing values of some variables should be imputed (to be investigated)
 
 mgcca <- function(x, mc.cores=1, ...) {
+  
   n<-length(x) # number of tables
   
   if (!is.list(x))
@@ -21,10 +22,29 @@ mgcca <- function(x, mc.cores=1, ...) {
     K[[i]] <- temp$K
   }
 
+  a<<-X
+  aa<<-K
+  
   p <- sapply(X, ncol) # number of variables per table
   numvars <- min(p) # minimum number of variables
   
-  ans <- list(X=X, K=K)
-  ans
+  Mi <- lapply(1:n, solution, XX=X, K=K)
+  M <- Reduce('+', Mi)
+  Ksum <- Reduce('+', K)
+  
+  Ksum05<-Ksum
+  diag(Ksum05)<-diag(Ksum05)^(-.5)
+  M<-Ksum05%*%M%*%Ksum05
+  
+  eig<-eigen(M)
+  Yast<-eig$vectors
+  lambda<-eig$values
+  Y<-sqrt(n)*Ksum05%*%Yast
+  
+  B <- lapply(1:n, productYKX, Y=Y, XX=X, K=K)
+  A <- lapply(1:n, productXKY, XX=X, K=K, Y=Y)
+  
+  As <- lapply(1:n, getWeights, A=A, XX=X, K=K)
+  As
 }
 

@@ -7,6 +7,7 @@ Author: Harry Odell and Juan R Gonzalez
 Maintainer: Juan R Gonzalez <juanr.gonzalez@isglobal.org>
 Depends: 
     BiocStyle,
+    pracma,  
     R (>= 3.2.0),
 Imports: 
 Description: 
