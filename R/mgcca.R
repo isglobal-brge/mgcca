@@ -8,22 +8,12 @@ mgcca <- function(x, mc.cores=1, ...) {
   if (!is.list(x))
     stop("x must be a list containing the different matrices")
   
-  rn <- NULL
-  for (i in 1:n){
-   rn<- c(rn, rownames(x[[i]])) 
-  }
-  rn<-sort(unique(rn))
-  m<-length(rn)  # get the maximum number of individuals 
+  rn <- sort(Reduce('union', lapply(x, rownames)))
+  m <- length(rn)  # get the maximum number of individuals 
   
-  X <- K <- vector("list", n)
-  for (i in 1:n){
-    temp <- getK(x[[i]], ids=rn, m=m)
-    X[[i]] <- as.matrix(temp$X)
-    K[[i]] <- temp$K
-  }
-
-  a<<-X
-  aa<<-K
+  XK <- lapply(x, getK, ids=rn, m=m)
+  X <- lapply(XK, '[[', 1)
+  K <- lapply(XK, '[[', 2)
   
   p <- sapply(X, ncol) # number of variables per table
   numvars <- min(p) # minimum number of variables

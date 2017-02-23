@@ -1,13 +1,12 @@
-
 getK <- function(x, ids, m) {
-  X <- merge(data.frame(ids=ids), x, by.x="ids", by.y = 0 , all.x=TRUE)[,-1]
-  rownames(X)<-ids
-  ww<-apply(is.na(X), 1, all)
-  X[ww,]<-0
-  K <- matrix(0,nrow=m,ncol=m)
-  diag(K)[!ww]<-1
-  ans <- list(X=X, K=K)
+  na.ids <- ids[!ids%in%rownames(x)]
+  x.na <- matrix(0, nrow=length(na.ids), ncol=ncol(x), dimnames = list(na.ids, colnames(x)))
+  X <- rbind(x, x.na)
+  X <- X[ids,]
+  K <- matrix(0, nrow=m, ncol=m)
+  rownames(K) <- ids
+  diag(K) <- 1
+  diag(K)[which(rownames(K)%in%na.ids)] <- 0
+  ans <- list(X=as.matrix(X), K=K)
   ans
 } 
-
-
