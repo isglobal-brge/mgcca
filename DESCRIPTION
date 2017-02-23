@@ -6,9 +6,11 @@ Date: 2017-02-21
 Author: Harry Odell and Juan R Gonzalez
 Maintainer: Juan R Gonzalez <juanr.gonzalez@isglobal.org>
 Depends: 
+    RcppEigen,
+    inline, 
     BiocStyle,
     pracma,  
-    R (>= 3.2.0),
+    R (>= 3.3.0)
 Imports: 
 Description: 
 License: GPL (>= 2)
