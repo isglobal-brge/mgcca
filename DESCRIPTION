@@ -9,7 +9,7 @@ Depends:
     RcppEigen,
     inline, 
     BiocStyle,
-    pracma,  
+    MASS,  
     R (>= 3.3.0)
 Imports: 
 Description: 
