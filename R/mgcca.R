@@ -29,7 +29,6 @@ mgcca <- function(x, nfac=2, mc.cores=1, ...) {
   eig<-eigen(M)
   Yast<-eig$vectors[,1:nfac]
   lambda<-eig$values[1:nfac]
-  lambda[lambda<0] <- 1e-30
   Y<-sqrt(n)*Ksum05%*%Yast
   
   B <- lapply(1:n, productYKX, Y=Y, XX=X, K=K)
