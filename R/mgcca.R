@@ -35,6 +35,7 @@ mgcca <- function(x, nfac=2, mc.cores=1, ...) {
   A <- lapply(1:n, productXKY, XX=X, K=K, Y=Y)
   
   As <- lapply(1:n, getWeights, A=A, XX=X, K=K)
-  As
+  ans <- list(Yast=Yast, B=B, A=A, As=As)
+  ans
 }
 
