@@ -7,6 +7,7 @@ getK <- function(x, ids, m) {
   rownames(K) <- ids
   diag(K) <- 1
   diag(K)[which(rownames(K)%in%na.ids)] <- 0
+  dimnames(X) <- dimnames(x)
   ans <- list(X=as.matrix(X), K=K)
   ans
 } 
