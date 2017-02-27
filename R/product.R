@@ -3,8 +3,7 @@ productYKX <- function(i, Y, K, XX) {
   yky <- ginv(yk%*%Y)
   ykx <- yk%*%XX[[i]]
   ans <- yky%*%ykx
-  rownames(ans) <- colnames(Y)
-  colnames(ans) <- rownames(Y)
+  colnames(ans) <- colnames(XX[[i]])
   ans
 }
 
@@ -14,7 +13,6 @@ productXKY <- function(i, XX, K, Y) {
    xkx <- ginv(xk%*%XX[[i]])
    xky <- xk%*%Y
    ans <- xkx%*%xky
-   rownames(ans) <- colnames(XX)
-   colnames(ans) <- rownames(XX)
+   rownames(ans) <- colnames(XX[[i]])
    ans
   }
