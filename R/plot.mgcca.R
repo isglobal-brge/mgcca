@@ -12,7 +12,7 @@ plot.mgcca <- function(x, nvars=5) {
     plot(As[[kk]][,1], As[[kk]][,2], col="white",pch=19,
          xlab=expression(As[1]),ylab=expression(As[2]))
     abline(h=0,v=0,lty=2,col="grey")
-    text(As[[kk]][,1], As[[kk]][,2], colnames(X[[kk]]), col=ifelse(ww,"red","black"),cex=0.8)
+    text(As[[kk]][,1], As[[kk]][,2], colnames(X), col=ifelse(ww,"red","black"),cex=0.8)
   }  
 }
 
