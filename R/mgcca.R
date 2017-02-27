@@ -36,6 +36,7 @@ mgcca <- function(x, nfac=2, mc.cores=1, ...) {
   
   As <- lapply(1:n, getWeights, A=A, XX=X, K=K)
   ans <- list(Yast=Yast, B=B, A=A, As=As)
+  class(ans) <- "mgcca"
   ans
 }
 
