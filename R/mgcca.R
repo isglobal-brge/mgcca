@@ -26,7 +26,7 @@ mgcca <- function(x, nfac=2, mc.cores=1, ...) {
   diag(Ksum05)<-diag(Ksum05)^(-.5)
   M<-Ksum05%*%M%*%Ksum05
   
-  eig<-eigen(M, symetric=TRUE)
+  eig<-eigen(M, symmetric=TRUE)
   Yast<-eig$vectors[,1:nfac]
   lambda<-eig$values[1:nfac]
   Y<-sqrt(n)*Ksum05%*%Yast
