@@ -8,6 +8,9 @@ mgcca2 <- function(x, nfac=2, mc.cores=1, ...) {
   if (!is.list(x))
     stop("x must be a list containing the different matrices")
 
+  if (any(unlist(lapply(xx, function(x) !is.matrix(x)))))
+    x <- lapply(x, as.matrix)
+  
   rn <- sort(Reduce('union', lapply(x, rownames)))
   m <- length(rn)  # get the maximum number of individuals
 
