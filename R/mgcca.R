@@ -42,7 +42,7 @@ mgcca2 <- function(x, nfac=2, mc.cores=1, ...) {
 #  B <- lapply(1:n, productYKX, Y=Y, XX=X, K=K)
   A <- lapply(1:n, productXKY, XX=X, K=K, Y=Y)
   As <- lapply(1:n, getWeights, A=A, XX=X, K=K)
-  scores <- lapply(1:n, getScores, dat=x, As=As)
+  scores <- lapply(1:n, getScores, dat=X, As=As)
 
   ans <- list(Yast=Yast, A=A, As=As, scores=scores)
   class(ans) <- "mgcca"
@@ -90,7 +90,7 @@ mgcca <- function(x, nfac=2, mc.cores=1, ...) {
  # B <- lapply(1:n, productYKX, Y=Y, XX=X, K=K)
   A <- lapply(1:n, productXKY, XX=X, K=K, Y=Y)
   As <- lapply(1:n, getWeights, A=A, XX=X, K=K)
-  scores <- lapply(1:n, getScores, dat=x, As=As)
+  scores <- lapply(1:n, getScores, dat=X, As=As)
 
   ans <- list(Yast=Yast, A=A, As=As, scores=scores)
   class(ans) <- "mgcca"
