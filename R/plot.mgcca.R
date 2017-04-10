@@ -1,4 +1,3 @@
-# prova...
 plot.mgcca <- function(x, table=1, nvars=5) {
   if(!inherits(x, "mgcca"))
    stop(" 'x' must be an object of class mgcca")
