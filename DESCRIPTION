@@ -1,20 +1,18 @@
 Package: mgcca
 Type: Package
 Title: Generalized Canonical Correlation Analysis having missing individuals
-Version: 0.9.5-25
-Date: 2017-02-21
-Author: Harry Odell and Juan R Gonzalez
+Version: 0.9.6
+Date: 2018-08-29
+Author: Juan R Gonzalez and Isaac Subirana
 Maintainer: Juan R Gonzalez <juanr.gonzalez@isglobal.org>
 Depends: 
-    RcppEigen,
-    inline, 
     BiocStyle,
     MASS,  
-    R (>= 3.3.0)
+    R (>= 3.5.0)
 Imports: 
 Description: 
-License: GPL (>= 2)
-URL: http://www.creal.cat/brge and http://www.creal.cat/jrgonzalez/software.htm
+License: MIT
+URL: http://isglobal.brge.org
 VignetteBuilder: knitr
 Suggests: BiocStyle, knitr, rmarkdown
 LazyData: TRUE

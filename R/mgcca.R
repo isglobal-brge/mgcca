@@ -1,7 +1,10 @@
 # input x (list of matrices - NOTE: each matrix should have the ids in the rownames
 # NOTE: missing values of some variables should be imputed (to be investigated)
 
-mgcca2 <- function(x, nfac=2, mc.cores=1, ...) {
+mgcca2 <- function(x, nfac=2, scale=TRUE, mc.cores=1, ...) {
+
+  if (scale)
+    x <- lapply(x, scale)
 
   n<-length(x) # number of tables
 
@@ -32,9 +35,8 @@ mgcca2 <- function(x, nfac=2, mc.cores=1, ...) {
   # eig<-eigen(M, symmetric=TRUE)
   # lambda<-eig$values[1:nfac]
   # Yast<-eig$vectors[,1:nfac]
-  M <<- M
 
-  eig <- irlba(M)
+  eig <- irlba(M, nv=nfac)
   Yast <- eig$u
 
   Y<-sqrt(n)*Ksum05%*%Yast
