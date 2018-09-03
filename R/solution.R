@@ -1,6 +1,6 @@
-solution <- function(i, XX, K) {
-  xk <- crossprod(XX[[i]],K[[i]])
-  xkx <- MASS::ginv(xk%*%XX[[i]])
+solution <- function(i, XX, K, XKX) {
+  xkx <- XKX[[i]][[1]]
+  xk <- XKX[[i]][[2]]
   ans <- K[[i]]%*%XX[[i]]%*%xkx%*%xk
   ans
 }

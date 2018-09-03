@@ -1,0 +1,205 @@
+---
+title: "Generalized Canonical Correlation with missing individuals"
+subtitle: "Juan R. Gonzalez and Isaac Subirana"
+author: |
+  | Institute for Global Health (ISGlobal), Barcelona, Spain
+  | Bioinformatics Research Group in Epidemiolgy (BRGE)
+  | http://brge.isglobal.org
+date: "`r Sys.Date()`"
+package: "`r pkg_ver('mgcca')`"
+output: 
+  BiocStyle::html_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{Generalized Canonical Correlation with missing individuals}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc} 
+---
+
+```{r setup_knitr, include=FALSE}
+knitr::opts_chunk$set(message = FALSE, warning = FALSE,
+                      cache=TRUE, fig.width = 5.5, fig.height = 5.5)
+```
+
+# Introduction
+
+This manual describes the gada package that implements a flexible and efficient analysis pipeline to detect genomic copy number alterations from microarray data. The package can import the raw copy number normalized intensities provided by Illumina BeadStudio, Affymetrix powertools, or any similar program from Bioconductor which is able to prepare data in pennCNV format. Probes of different samples should provided into separate files and can be analyzed on a standalone
+workstation or in parallel using a cluster/multicore computer. The speed and accuracy of the genome alteration detection analysis (GADA) approach combined with parallel computing results in one of the
+fastest and most accurate methods, and it is especially suitable to extract copy number alterations (CNAs) on genomewide studies involving hundreds of samples utilizing high density arrays with millions of markers.
+
+
+# Getting started
+The development version of `mgcca` package can be installed from BRGE GitHub repository:
+
+```{r install_gada, eval=FALSE}
+devtools::install_github("isglobal-brge/mgcca")
+```
+
+The package depends on other R/Bioc packages that can be installed using standard functions (`install.packages` and/or `biocLite`). `mgcca` also depends on `rfunctions` package that can be installed from GitHub by:
+
+```{r install_rfunctions, eval=FALSE}
+devtools::install_github("jaredhuling/rfunctions")
+```
+
+Then, the package can be loaded into R as usual
+
+```{r load_library, cache=FALSE}
+library(mgcca)
+```
+
+This vignette uses data from different packages ...
+
+
+# Canonical correlation
+
+```{r load_russett}
+library(RGCCA)
+data(Russett, package="RGCCA")
+Xagric <- as.matrix(Russett[,c("gini","farm","rent")])
+Xind <- as.matrix(Russett[,c("gnpr","labo")])
+Xpolit <- as.matrix(Russett[ , c("inst", "ecks", "death")])
+X <- list(Xagric=Xagric, Xind=Xind, Xpolit=Xpolit)
+```
+
+```{r}
+labs <- rownames(Russett)
+group <- as.vector(apply(Russett[, c("demostab", "demoinst", "dictator")], 
+                       1, which.max))
+names(group) <- labs
+```
+
+
+```{r rgcca}
+Russett.sel <- cbind(Xagric, Xind, Xpolit)
+X.rgcca <- X
+X.rgcca[[4]] <- Russett.sel
+C <- matrix(c(0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1, 1, 1, 1, 0), 4, 4)
+res.rgcca <- rgcca(X.rgcca, C, tau = c(0, 0, 0, 0), ncomp = rep(2, 4),
+                   scheme = "factorial", scale = TRUE, verbose=FALSE)
+```
+
+```{r plotIndsrgcca}
+plot(res.rgcca$Y[[4]][, 1], res.rgcca$Y[[4]][, 2], type = "n",
+     xlab = "Global Component 1", ylab = "Global Component 2")
+text(res.rgcca$Y[[4]][, 1], res.rgcca$Y[[4]][, 2], labs, col = group)
+grid()
+abline(h=0)
+abline(v=0)
+```
+
+```{r corwithglobal}
+corr <- cor(Russett.sel, res.rgcca$Y[[4]])
+```
+
+```{r plotvarsrgcca}
+plot(corr[,1], corr[, 2], type = "n",
+     xlab = "Global Component 1", ylab = "Global Component 2")
+text(corr[, 1], corr[, 2], rownames(corr))
+grid()
+abline(h=0)
+abline(v=0)
+```
+
+
+```{r mgcca_russet}
+res.mgcca <- mgcca(X)
+```
+
+```{r plot_mgcca_russett}
+plotInds(res.mgcca, group=as.factor(group), print.labels = TRUE, 
+        pos.leg="topleft")
+plotVars(res.mgcca, nlab=5)
+```
+
+
+# Reguralized canonical correlation: the `omic` case 
+
+The nutrimouse dataset comes from a nutrition study in the mouse. It was provided by Pascal Martin from the Toxicology and Pharmacology Laboratory (French National Institute for Agronomic Research) and is available at R package `CCA`. It contains information on 40 mouse for two tables and a grouping variable having wild-type and PPARalpha -/- genotypes. Such information can be retrieved into R by:
+
+```{r data_nutrimouse}
+library(CCA)
+data(nutrimouse, package = "CCA")
+X <- as.matrix(nutrimouse$gene)
+Y <- as.matrix(nutrimouse$lipid)
+group <- nutrimouse$genotype
+```
+
+Table X includes gene expresion on 120 genes potentially involved in nutritional problems, while table Y contains concentration of 21 hepatic fatty acids.  concentration
+
+```{r desc_nutri}
+dim(X)
+dim(Y)
+table(group)
+```
+
+```{r res_nutri_rcc, cache=TRUE}
+X.s <- scale(X)
+Y.s <- scale(Y)
+lambda.est <- estim.regul(X.s, Y.s, plt=FALSE)
+res.rcca <- rcc(X.s, Y.s, lambda.est[1], lambda.est[2])
+```
+
+```{r plot_indiv_nutri_rcca}
+plt.indiv(res.rcca, 1, 2, ind.names = group)
+```
+
+
+```{r res_nutri_mgcca, cache=TRUE}
+XX <- list(genes=X, lipids=Y)
+res.mgcca <- mgcca(XX, inv = "penalized", lambda=c(0.5, 0.001))
+```
+
+```{r plot_indiv_nutri_mrcca}
+plotInds(res.mgcca, group=group)
+```
+
+
+```{r res_nutri_rgcca}
+X.rgcca <- list(X, Y, cbind(X,Y))
+C <- matrix(c(0, 0,  1, 0, 0, 1, 1, 1, 0), 3, 3)
+res.rgcca <- rgcca(X.rgcca, C, tau = c(0, 0, 0), ncomp = rep(2, 3),
+                   scheme = "factorial", scale = TRUE, verbose=FALSE)
+```
+
+```{r plot_indiv_nutri_rgcca}
+plot(res.rgcca$Y[[3]][, 1], res.rgcca$Y[[3]][, 2], type = "n",
+     xlab = "Global Component 1", ylab = "Global Component 2")
+text(res.rgcca$Y[[3]][, 1], res.rgcca$Y[[3]][, 2], group, col = as.numeric(group))
+grid()
+abline(h=0)
+abline(v=0)
+```
+
+
+```{r plot_vars_mgcca}
+plotVars(res.mgcca, nlab=5)
+```
+
+```{r vars_mgcca_sig}
+getSignif(res.mgcca, pval=1e-6, df="genes")
+```
+
+```{r plot_vars_mgcca_sig}
+var.signif <- getSignif(res.mgcca, pval=1e-6, df="genes")$variable
+plotVars(res.mgcca, var=var.signif, var.col = rep("red", length(var.signif)), var.lab=TRUE, df="genes")
+```
+
+
+```{r omicade4}
+library(omicade4)
+res.mcia <- mcia(list(genes=t(X.s), lipid=t(Y.s)))
+plotVar(res.mcia, nlab=5)
+``` 
+
+```{r plot_mcia}
+plot(res.mcia, phenovec=group, sample.lab=FALSE, df.color=c("blue", "darkgreen"))
+```
+
+# Generalized Canonical Correlation with missing individuals
+
+
+```{r sessionInfo}
+sessionInfo()
+```

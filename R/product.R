@@ -1,18 +1,18 @@
+productXKY <- function(i, Y, XKX, inv="solve") {
+  xkx <- XKX[[i]][[1]]
+  xk <- XKX[[i]][[2]]
+  xky <- xk%*%Y
+  ans <- xkx%*%xky
+  ans
+}
+
 productYKX <- function(i, Y, K, XX) {
+  # not called so far ...  think about how to make comparable with XKX
   yk <- crossprod(Y, K[[i]])
-  yky <- MASS::ginv(yk%*%Y)
+  yky <- geninv(yk%*%Y) # improve
   ykx <- yk%*%XX[[i]]
   ans <- yky%*%ykx
-  colnames(ans) <- colnames(XX[[i]])
   ans
 }
 
 
-productXKY <- function(i, XX, K, Y) {
-   xk <- crossprod(XX[[i]], K[[i]])
-   xkx <- MASS::ginv(xk%*%XX[[i]])
-   xky <- xk%*%Y
-   ans <- xkx%*%xky
-   rownames(ans) <- colnames(XX[[i]])
-   ans
-  }
