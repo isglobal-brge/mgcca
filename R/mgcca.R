@@ -7,8 +7,9 @@
 #' @param pval should p-values of correlation between variables and shared canonical variates be computed? Default is TRUE.
 #' @param scores should canonical variables be computed for each table?
 #'               Default is FALSE. See details
+#' @param method ...
+#' @param lambda ...
 #' @param mc.cores ...
-#' @param inv ...
 #' @details
 #' eigen with Rfast hd.eigen select number of components speed up process (RSpectra?)
 #' rownames matrices ... si hay distintos ordena - si no, no.
@@ -16,8 +17,9 @@
 #' scores .. si queremos correlation with each table!
 #' inversa ...
 #' "solve" para n>>p (pero lento) (solve function)
+#' "penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
+
 #' "geninv" n<<p generalized inverse (rfunctions geninv)
-#' "penalized" penalized adding lambda*I (rfunctions cgls)
 #' "ginv" generalized inverse (MASS ginv)
 #'
 #' @return a list consisting of
@@ -35,8 +37,23 @@
 #' @importFrom MASS ginv
 #' @importFrom RSpectra eigs eigs_sym
 
-mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE, mc.cores=1,
-                  inv="solve", lambda, ...) {
+mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
+                  method="solve", lambda, mc.cores=1, ...) {
+
+  inv.type <- c("solve", "penalized")
+  inv.method <- charmatch(method, inv.type, nomatch = 0)
+  if (inv.method == 0)
+    stop("method should be 'solve' or 'penalized' \n")
+
+  n <- length(x) # number of tables
+
+  if (inv.method == 2){
+    if (missing(lambda))
+      stop("penalized method requires lambda parameter \n")
+    else
+      if(length(lambda)!=n)
+        stop("lambda must be a vector of length equal to the number of tables \n")
+  }
 
   nas <- sapply(x, function(x) any(is.na(x)))
 
@@ -47,7 +64,6 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE, mc.cores=1,
   if (scale)
     x <- lapply(x, scale)
 
-  n <- length(x) # number of tables
 
   if (!is.list(x))
     stop("x must be a list containing the different matrices")
@@ -56,7 +72,7 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE, mc.cores=1,
     x <- lapply(x, as.matrix)
 
   ns <- sapply(x, nrow)
-  if(all.equal(max(ns), min(ns))) # check whether there are missing individuals
+  if(max(ns)==min(ns)) # check whether there are missing individuals
     rn <- Reduce('union', lapply(x, rownames))
   else
     rn <- sort(Reduce('union', lapply(x, rownames)))
@@ -64,31 +80,43 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE, mc.cores=1,
 
   XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
   X <- lapply(XK, '[[', 1)
-  K <- lapply(XK, '[[', 2)
+  K <<- lapply(XK, '[[', 2)
 
   p <- sapply(X, ncol) # number of variables per table
   numvars <- min(p) # minimum number of variables
 
   # Get the required XKX product and inverse that is computed multiple times
-  XKX <- getXKX(X, K, inv, lambda)
+  print(system.time(XKX <<- getXKX(X, K, inv.method, lambda=lambda,
+                                   mc.cores=mc.cores)))
 
-  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
-  M <- Reduce('+', Mi)
+  print(system.time(Mi <<- mclapply(1:n, solution, XX=X, K=K, XKX=XKX,
+                                   mc.cores=mc.cores)))
+  M <<- Reduce('+', Mi)
   Ksum <- Reduce('+', K)
 
-  Ksum05<-Ksum
-  diag(Ksum05)<-diag(Ksum05)^(-.5)
-  M<-Ksum05%*%M%*%Ksum05
+  # old computation M<-Ksum05%*%M%*%Ksum05
+  # Ksum05 <- Ksum
+  # diag(Ksum05) <- diag(Ksum05)^(-.5)
 
-  if(isSymmetric(M))
-    eig <- eigs_sym(M, k=nfac, ...)
+  # ... this is much faster! (new function mult_wXw)
+  Ksum05 <- diag(Ksum)^(-0.5)
+  MKsum05 <- mult_wXw(M, Ksum05)
+
+  print("entro")
+  print(isSymmetric(MKsum05))
+
+  print(system.time(if(isSymmetric(MKsum05))
+    eig <- eigs_sym(MKsum05, k=nfac, ...)
   else {
-    eig <- eigs(M, k=nfac, ...)
-  }
+    eig <- eigs(MKsum05, k=nfac, ...)
+  }))
+
+  print("salgo")
 
   Yast <- Re(eig$vectors)
 
-  Y<-sqrt(n)*Ksum05%*%Yast
+  # Y<-sqrt(n)*Ksum05%*%Yast
+  Y <- sqrt(n)*mult_wX(Yast, Ksum05)
   colnames(Y) <- paste0("comp", 1:ncol(Y))
   rownames(Y) <- rn
 
@@ -106,7 +134,16 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE, mc.cores=1,
     scores <- NULL
   }
 
-  corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
+  if(max(ns)==min(ns))
+    corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
+  else{
+    ff <- function(x, y){
+      o <- intersect(rownames(x), rownames(y))
+      ans <- cor(x[o,], y[o,])
+      ans
+    }
+    corsY <- mclapply(x, ff, y=Y, mc.cores=mc.cores)
+  }
 
   if (pval)
     pval.cor <- mclapply(corsY, cor.test.p, n=m, mc.cores=mc.cores)

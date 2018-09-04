@@ -148,7 +148,7 @@ plt.indiv(res.rcca, 1, 2, ind.names = group)
 
 ```{r res_nutri_mgcca, cache=TRUE}
 XX <- list(genes=X, lipids=Y)
-res.mgcca <- mgcca(XX, inv = "penalized", lambda=c(0.5, 0.001))
+res.mgcca <- mgcca(XX, inv = "penalized", lambda=lambda.est)
 ```
 
 ```{r plot_indiv_nutri_mrcca}
@@ -199,6 +199,34 @@ plot(res.mcia, phenovec=group, sample.lab=FALSE, df.color=c("blue", "darkgreen")
 
 # Generalized Canonical Correlation with missing individuals
 
+```{r rcc_missing}
+
+data(ge_cgh_locIGR, package="gliomaData")
+lapply(ge_cgh_locIGR$multiblocks, dim)
+system.time(mod <- mgcca(ge_cgh_locIGR$multiblocks[1:2], inv = "ginv"))
+
+set.seed(12345)
+ids <- rownames(Russett)
+length(ids)
+
+o1 <- sample(ids, length(ids))
+o2 <- sample(ids, 40)
+o3 <- sample(ids, 35)
+o <- intersect(intersect(o1, o2),o3)
+length(o)
+
+X.miss <- list(Xagric=Xagric[o1,], 
+               Xind=Xind[o2,], 
+               Xpolit=Xpolit[o3,])
+
+X.comp <- list(Xagric=Xagric[o,],
+               Xind=Xind[o,],
+               Xplit=Xpolit[o,])
+
+res.miss <- mgcca(X.miss)
+res.comp <- mgcca(X.comp)
+
+```
 
 ```{r sessionInfo}
 sessionInfo()

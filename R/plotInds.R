@@ -20,9 +20,10 @@ plotInds <- function(x, group, ax1=1, ax2=2, col.list, print.labels=FALSE,
   if (length(col.list) < levs)
     stop("'col.list' length should be equal to the levels of grouping variable")
   cols <- as.character(factor(group, labels=col.list))
-  plot(comp1, comp2, type="n", ...)
-  points(comp1, comp2, pch=16, col=cols, xlab=paste0("Global component", comp1),
-         ylab=paste0("Global component", comp2))
+  plot(comp1, comp2, type="n", xlab=paste("Global component", ax1),
+       ylab=paste("Global component", ax2), ...)
+  if (!print.labels)
+    points(comp1, comp2, pch=16, col=cols)
   abline(h=0)
   abline(v=0)
   grid(lty=3, col="gray80")

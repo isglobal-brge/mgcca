@@ -102,9 +102,9 @@ ans
 #
 
 set.seed(12345)
-n <- 100
-p <- 15
-q <- 25
+n <- 1000
+p <- 200
+q <- 500
 prop.miss <- 0.1
 ncomp <- 2
 
@@ -138,34 +138,17 @@ Xr <- lapply(Xmiss, na.omit)
 ###### Libraries
 library(mgcca)
 library(RGCCA)
-library(Rfast)
 library(rfunctions)
-
+library(CCA)
+library(omicade4)
 
 system.time(result1 <- mgcca(Xori, nfac = ncomp))
-system.time(result2 <- mgcca(Xori, nfac = ncomp, method = "Rfast",
-                             inv="solve"))
-system.time(result2e <- mgcca(Xori, nfac = ncomp, method="Rfast",
-                              inv="fast"))
-system.time(result2f <- mgcca(Xori, nfac = ncomp, method="Rfast",
-                              inv="geninv"))
-system.time(result2g <- mgcca(Xori, nfac = ncomp, method="Rfast",
-                             inv="penalized"))
-system.time(result2h <- mgcca(Xori, nfac = ncomp, method="Rfast",
-                              inv="ginv"))
+system.time(result2 <- mgcca(Xori, nfac = ncomp, method="penalized",
+                             lambda=c(0.1, 0.1)))
 
-system.time(result3 <- mgcca(Xr, nfac = ncomp))
+system.time(result3 <- mcia(list(t(Xori[[1]]), t(Xori[[2]]))))
 
-max(result2e$A[[1]] - result2$A[[1]])
-max(result2f$A[[1]] - result2$A[[1]])
-max(result2g$A[[1]] - result2$A[[1]])
-max(result2e$A[[1]] - result2$A[[1]])
 
-max(result2g$A[[1]] - result2f$A[[1]])
-max(result2e$A[[1]] - result2g$A[[1]])
-max(result2h$A[[1]] - result2f$A[[1]])
-max(result2e$A[[1]] - result2g$A[[1]])
-max(result2h$A[[1]] - result2g$A[[1]])
 
 C <- matrix(c(0,0,1,
               0,0,1,
@@ -187,12 +170,45 @@ text(result1$Y, rownames(Xori[[1]]))
 plot(result1$corsY[[1]], type="n")
 text(result1$corsY[[1]], rownames(Xori[[1]]))
 
+# Check diag(K)%*%M%*%diag(K)
+A <- matrix(rnorm(25), 5, 5)
+w <- round(seq(1,2, length=5),1)
+res1 <- diag(w)%*%A%*%diag(w)
+res2 <- mult_wXw(A,w)
+identical(res1,res2)
+
+res3 <- crossprod(A, diag(w))
+res4 <- mult_Xw(t(A),w)
+identical(res3,res4)
+
+
+# check with CCA
+
+mod1 <- mgcca(X, scores=TRUE)
+mod2 <- cc(X1, X2)
+plotInds(mod1, print.labels = TRUE)
+plt.indiv(mod2, 1, 2)
+
+data(nutrimouse)
+X <- as.matrix(nutrimouse$gene)
+Y <- as.matrix(nutrimouse$lipid)
+group <- nutrimouse$genotype
+X.s <- scale(X)
+Y.s <- scale(Y)
+lambda.est <- estim.regul(X.s, Y.s, plt=FALSE)
+lambda <- c(lambda.est[1], lambda.est[2])
+res.rcc <- rcc(X.s, Y.s, lambda[1], lambda[2])
+res.mgcca <- mgcca(list(X.s, Y.s), scale=FALSE, method="penalized",
+                   lambda=lambda)
+
+plotInds(res.mgcca, print.labels = TRUE)
+plt.indiv(res.rcc, 1, 2)
 
 
 # SVD big data
 
-a <- matrix(rnorm(1000000), 1000, 1000)
-a <- crossprod(a)
+a <- matrix(rnorm(10000), 100, 100)
+aa <- crossprod(a)
 system.time(corpcor::fast.svd(a))
 system.time(RSpectra::svds(a, k=5))
 system.time(svd(a))
@@ -203,16 +219,13 @@ system.time(aaaa <- rfunctions::solveEigen(a, diag(ncol(a)))$x)
 
 # check inverse
 
-a <- matrix(rnorm(100000000), 10000, 10000)
-a <- crossprod(a)
-matrixcalc::is.positive.definite(a)
+a <- matrix(rnorm(10000), 100, 100)
+aa <- crossprod(a)
 y <- diag(nrow(a))
-aa<-Matrix::nearPD(a)$mat
 
-b1 <- solve(a)
-b2 <- matrixcalc::svd.inverse(a)
-b3 <- Rfast::spdinv(a)
-b4 <- genInv(a)
+b1 <- solve(aa)
+b2 <- cgls(aa, y, lambda=0)$x
+b3 <- RIDGEsigma(aa, lam=c(0.001,0.2))
 
 max(b4-b1)
 max(b2-b1)
