@@ -9,7 +9,6 @@ Depends:
     BiocStyle,
     MASS,
     parallel,
-    rfunctions,
     RSpectra,
     made4,
     R (>= 3.5.0)

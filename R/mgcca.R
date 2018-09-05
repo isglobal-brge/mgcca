@@ -40,7 +40,7 @@
 mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
                   method="solve", lambda, mc.cores=1, ...) {
 
-  inv.type <- c("solve", "penalized")
+  inv.type <- c("solve", "penalized", "geninv")
   inv.method <- charmatch(method, inv.type, nomatch = 0)
   if (inv.method == 0)
     stop("method should be 'solve' or 'penalized' \n")
@@ -79,7 +79,7 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   m <- length(rn)  # get the maximum number of individuals
 
   XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
-  X <- lapply(XK, '[[', 1)
+  X <<- lapply(XK, '[[', 1)
   K <<- lapply(XK, '[[', 2)
 
   p <- sapply(X, ncol) # number of variables per table

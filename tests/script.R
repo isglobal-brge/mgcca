@@ -103,8 +103,8 @@ ans
 
 set.seed(12345)
 n <- 1000
-p <- 200
-q <- 500
+p <- 2000
+q <- 50
 prop.miss <- 0.1
 ncomp <- 2
 
@@ -144,9 +144,8 @@ library(omicade4)
 
 system.time(result1 <- mgcca(Xori, nfac = ncomp))
 system.time(result2 <- mgcca(Xori, nfac = ncomp, method="penalized",
-                             lambda=c(0.1, 0.1)))
-
-system.time(result3 <- mcia(list(t(Xori[[1]]), t(Xori[[2]]))))
+                             lambda=c(0.5, 0.1)))
+system.time(result3 <- mgcca(Xori, nfac = ncomp, method="geninv"))
 
 
 
@@ -158,6 +157,82 @@ Xg <- list(Xori[[1]], Xori[[2]], cbind(Xori[[1]], Xori[[2]]))
 system.time(result4 <- rgcca(Xg, C=C, tau = rep(0,3),
                  scheme = "factorial", ncomp=c(2,2,2), verbose=FALSE))
 
+system.time(result5 <- mcia(list(t(Xori[[1]]), t(Xori[[2]]))))
+
+
+# some checks
+i <- 1
+xk <- mgcca:::mult_Xw(t(X[[i]]), diag(K[[i]]))
+M <- xk%*%X[[i]]
+geninv(M)[1:5,1:5]
+cgls(M, diag(ncol(M)))$x[1:5,1:5]
+
+aa<-chol(M+1.0001*diag(ncol(M)))
+aaa<-solve(solve(t(aa)))
+
+aaa[1:5,1:5]
+
+ee <- eigen(M)
+Q <- ee$vectors
+L <- ee$values
+lambda <- 1
+sum(Q[1,]*Q[,1])/(L[1] + lambda)
+
+
+LOOE <- function(lambda, Q, L){
+  num <- getC(Q, L, lambda)
+  dem <- getGinv(Q, L, lambda)
+  dd <- num/dem
+  ans <- sum(diag(dd)^2)
+  ans
+}
+
+LOOE <- function(lambda, Q, L){
+  ans <- getC(Q, L, lambda)
+  sum(diag(ans))
+}
+
+
+
+getC <- function(Q, L, lambda){
+  inv <- 1/(L+lambda)
+  QI <- mult_Xw(Q, inv)
+  QIQ <- tcrossprod(QI, Q)
+  QIQ
+}
+
+getGinv <- function(Q, L, lambda){
+  ans <- sapply(1:length(L), getGinv.i, Q=Q, L=L, lambda=lambda)
+  ans
+}
+
+getGinv.i <- function(j, Q, L, lambda){
+  ans <- sapply(1:length(L), getGinv.j, Q=Q, L=L, lambda=lambda, j=j)
+  ans
+}
+
+getGinv.j <- function(i, j, Q, L, lambda){
+  v <- (Q[i,]*Q[j,])/(L+lambda)
+  ans <- sum(v)
+  ans
+}
+system.time(ans3 <- outer(1:length(L), 1:length(L), getGinv.j,
+                          Q=Q, L=L, lambda=0.2))
+# check new algorithm
+
+ll <- estim.regul(X[[1]], X[[2]])
+
+mod <- mgcca(X, method="penalized", lambda=c(1,0.1))
+i <- 1
+xk <- mult_Xw(t(X[[i]]), diag(K[[i]]))
+M <- xk%*%X[[i]]
+
+ee <- eigen(M)
+Q <- ee$vectors
+L <- ee$values
+ss <- seq(0.05, 1, 0.05)
+ans <- sapply(ss, LOOE, Q=Q, L=L)
+ss[which.min(ans)]
 
 # plot
 
@@ -189,7 +264,7 @@ mod2 <- cc(X1, X2)
 plotInds(mod1, print.labels = TRUE)
 plt.indiv(mod2, 1, 2)
 
-data(nutrimouse)
+data(nutrimouse, package="CCA")
 X <- as.matrix(nutrimouse$gene)
 Y <- as.matrix(nutrimouse$lipid)
 group <- nutrimouse$genotype
@@ -199,9 +274,10 @@ lambda.est <- estim.regul(X.s, Y.s, plt=FALSE)
 lambda <- c(lambda.est[1], lambda.est[2])
 res.rcc <- rcc(X.s, Y.s, lambda[1], lambda[2])
 res.mgcca <- mgcca(list(X.s, Y.s), scale=FALSE, method="penalized",
-                   lambda=lambda)
+                   lambda=c(0.13,0.13))
 
 plotInds(res.mgcca, print.labels = TRUE)
+plotInds(res.mgcca, group=group, print.labels = TRUE)
 plt.indiv(res.rcc, 1, 2)
 
 
@@ -219,9 +295,91 @@ system.time(aaaa <- rfunctions::solveEigen(a, diag(ncol(a)))$x)
 
 # check inverse
 
-a <- matrix(rnorm(10000), 100, 100)
+a <- matrix(rnorm(10000), 40, 250)
+a[,100:200] <- 3*a[,1:101]
 aa <- crossprod(a)
-y <- diag(nrow(a))
+
+a1 <- inv2(aa, lambda=0.000001)
+sum((a%*%a1%*%t(a) - diag(nrow(a)))**2)
+
+
+
+inv2 <- function(x, lambda){
+  y <- diag(nrow(x))*lambda
+  M <- x + y
+  ans <- chol2inv(chol(M))
+  ans
+}
+
+system.time(ans1 <- inv2(aa, 0.3))
+ee <- eigen(aa)
+Q <- ee$vectors
+L <- ee$values
+system.time(ans2 <- getC(Q, L, 0.3))
+
+
+getC <- function(Q, L, lambda){
+  Xw <- mult_Xw(Q, 1/(L+lambda))
+  ans <- tcrossprod(Xw, Q)
+  ans
+}
+
+getC1 <- function(x, lambda){
+  eig <- eigen(x, symmetric=TRUE)
+  Q <- eig$vectors
+  L <- eig$values
+  Xw <- mult_Xw(Q, 1/(L+lambda))
+  ans <- tcrossprod(Xw, Q)
+  ans
+}
+
+
+LOOE <- function(lambda, x) {
+  inv <- inv2(x, lambda)
+  looe <- inv - diag(nrow(inv))
+  ans <- sum(looe^2)
+  ans
+}
+
+LOOE <- function(lambda, Q, L) {
+  inv <- getC(Q, L, lambda)
+  looe <- inv - diag(nrow(inv))
+  ans <- sum(looe^2)
+  ans
+}
+
+ee <- eigen(aa)
+Q <- ee$vectors
+L <- ee$values
+
+M <- getC(Q, L, 0.2)
+(MM%*%M)[1:5,1:5]
+
+ss <- seq(0.05, 4, 0.01)
+ans <- sapply(ss, LOOE, x=aa)
+ans
+
+ok <- ss[which.min(ans)]
+
+(aa%*%getC(Q,L, 0.1))[1:5,1:5]
+
+
+
+############################
+
+M <- cgls(MM, diag(ncol(MM)), lambda=0.4)$x
+Minv <- MM%*%M
+Minv[1:5,1:5]
+
+
+ee <- eigen(M, symmetric = TRUE)
+Q <- ee$vectors
+L <- ee$values
+ss <- seq(0.05, 1, 0.05)
+ans <- sapply(ss, LOOE, Q=Q, L=L)
+ss[which.min(ans)]
+
+
 
 b1 <- solve(aa)
 b2 <- cgls(aa, y, lambda=0)$x
