@@ -1,4 +1,4 @@
-#' Generalized canonical correlation with missing individuals
+#' Generalized canonical correlation
 #'
 #' @param x list of matrices. Each matrix should have the ids in the
 #' rownames. Missing is not allowed (see details)
@@ -19,7 +19,7 @@
 #' "solve" para n>>p (pero lento) (solve function)
 #' "penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
 
-#' "geninv" n<p generalized inverse (rfunctions geninv)
+#' "geninv" n<<p generalized inverse (rfunctions geninv)
 #' "ginv" generalized inverse (MASS ginv)
 #'
 #' @return a list consisting of
@@ -37,7 +37,7 @@
 #' @importFrom MASS ginv
 #' @importFrom RSpectra eigs eigs_sym
 
-mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
+gcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
                   method="solve", lambda, mc.cores=1, ...) {
 
   inv.type <- c("solve", "penalized", "geninv")
@@ -72,46 +72,26 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
     x <- lapply(x, as.matrix)
 
   ns <- sapply(x, nrow)
-  if(max(ns)==min(ns)) # check whether there are missing individuals
-    rn <- Reduce('union', lapply(x, rownames))
-  else
-    rn <- sort(Reduce('union', lapply(x, rownames)))
-  m <- length(rn)  # get the maximum number of individuals
+  if(max(ns)!=min(ns)) # check whether there are missing individuals
+    stop("Method requires complete cases or try 'mgcca' function \n
+         to deal with missing individuals")
 
-  XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
-  X <- lapply(XK, '[[', 1)
-  K <- lapply(XK, '[[', 2)
-
-  p <- sapply(X, ncol) # number of variables per table
+  p <- sapply(x, ncol) # number of variables per table
   numvars <- min(p) # minimum number of variables
+  m <- nrow(x[[1]]) # number of individuals
 
-  # Get the required XKX product and inverse that is computed multiple times
-  XKX <- getXKX(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
+  Mi <- getSol(x, inv.method, lambda=lambda, mc.cores=mc.cores)
 
-  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
   M <- Reduce('+', Mi)
-  Ksum <- Reduce('+', K)
 
-  # old computation M<-Ksum05%*%M%*%Ksum05
-  # Ksum05 <- Ksum
-  # diag(Ksum05) <- diag(Ksum05)^(-.5)
-
-  # ... this is much faster! (new function mult_wXw)
-  Ksum05 <- diag(Ksum)^(-0.5)
-  MKsum05 <- mult_wXw(M, Ksum05)
-
-
-  if(isSymmetric(MKsum05))
-    eig <- eigs_sym(MKsum05, k=nfac, ...)
+  if(isSymmetric(M))
+    eig <- eigs_sym(M, k=nfac, ...)
   else
-    eig <- eigs(MKsum05, k=nfac, ...)
+    eig <- eigs(M, k=nfac, ...)
 
-  Yast <- Re(eig$vectors)
-
-  # Y<-sqrt(n)*Ksum05%*%Yast
-  Y <- sqrt(n)*mult_wX(Yast, Ksum05)
+  Y <- Re(eig$vectors)
   colnames(Y) <- paste0("comp", 1:ncol(Y))
-  rownames(Y) <- rn
+  rownames(Y) <- rownames(x[[1]])
 
   if (scores) {
     A <- mclapply(1:n, productXKY, Y=Y, XKX=XKX, mc.cores=mc.cores,

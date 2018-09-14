@@ -102,9 +102,9 @@ ans
 #
 
 set.seed(12345)
-n <- 1000
-p <- 2000
-q <- 50
+n <- 500
+p <- 140
+q <- 75
 prop.miss <- 0.1
 ncomp <- 2
 
@@ -160,24 +160,39 @@ system.time(result4 <- rgcca(Xg, C=C, tau = rep(0,3),
 system.time(result5 <- mcia(list(t(Xori[[1]]), t(Xori[[2]]))))
 
 
+microbenchmark(
+  mgcca = res1 <- mgcca(Xori, nfac = ncomp),
+  gcca = res2 <- gcca(Xori, nfac = ncomp),
+  times = 100
+)
+
+
 # some checks
-i <- 1
-xk <- mgcca:::mult_Xw(t(X[[i]]), diag(K[[i]]))
-M <- xk%*%X[[i]]
-geninv(M)[1:5,1:5]
-cgls(M, diag(ncol(M)))$x[1:5,1:5]
-
-aa<-chol(M+1.0001*diag(ncol(M)))
-aaa<-solve(solve(t(aa)))
-
-aaa[1:5,1:5]
-
-ee <- eigen(M)
+a <- matrix(rnorm(10000), 100, 100)
+aa <- crossprod(a)
+ee <- eigen(aa)
 Q <- ee$vectors
 L <- ee$values
-lambda <- 1
-sum(Q[1,]*Q[,1])/(L[1] + lambda)
+lambda <- 0.2
 
+ans1 <- solve_penal(Q, L, lambda)
+ans2 <- chol2inv(chol(aa + diag(ncol(aa))*lambda))
+ans3 <- .C("solve_penal", Q, L, lambda, as.integer(nrow(Q)))
+
+system.time(
+
+ff <- function(x){
+  a1<-RConics::adjoint(x)
+  a2 <- det(x)
+  a3 <- a1/a2
+  a3
+}
+system.time(o2 <- ff(aa))
+system.time(o2 <- solve(aa))
+
+
+ans1[1:5, 1:5]
+ans2[1:5, 1:5]
 
 LOOE <- function(lambda, Q, L){
   num <- getC(Q, L, lambda)
@@ -216,8 +231,27 @@ getGinv.j <- function(i, j, Q, L, lambda){
   ans <- sum(v)
   ans
 }
+
 system.time(ans3 <- outer(1:length(L), 1:length(L), getGinv.j,
                           Q=Q, L=L, lambda=0.2))
+
+solve_penal <- function(Q, L, lambda){
+  # Q square matrix (nxn)
+  # L vector (n)
+  # lambda ()
+  n <- nrow(Q)
+  ans <- matrix(NA, n, n)
+  for (i in 1:n){
+    for (j in i:n) {                       # nota que va desde i porque es simetrica
+      ans.ij <- (Q[i,]*Q[j,])/(L+lambda)   # nota que el bucle para hacer
+      ans[i,j] <- ans[j, i] <- sum(ans.ij) # la suma en L no la pongo porque
+    }                                      # R es vectorial
+  }
+  ans
+}
+
+
+
 # check new algorithm
 
 ll <- estim.regul(X[[1]], X[[2]])
@@ -295,9 +329,13 @@ system.time(aaaa <- rfunctions::solveEigen(a, diag(ncol(a)))$x)
 
 # check inverse
 
-a <- matrix(rnorm(10000), 40, 250)
-a[,100:200] <- 3*a[,1:101]
+a <- matrix(rnorm(50000000), 5000, 10000)
+a <- matrix(rnorm(50000000), 5000, 10000)
 aa <- crossprod(a)
+aaa <- aa + 0.2*diag(ncol(aa))
+
+system.time(ans1 <- chol2inv(chol(aaa)))
+system.time(ans2 <- bigLmFit(diag(nrow(aaa)), aaa, chunk=100, byrow=TRUE))
 
 a1 <- inv2(aa, lambda=0.000001)
 sum((a%*%a1%*%t(a) - diag(nrow(a)))**2)
@@ -439,7 +477,7 @@ max(abs(res.mgcca$Y) - abs(res.rgcca$Y[[3]]))
 #
 # Russet
 #
-
+library(RGCCA)
 data(Russett)
 X_agric <- as.matrix(Russett[,c("gini","farm","rent")])
 X_ind <- as.matrix(Russett[,c("gnpr","labo")])
@@ -462,8 +500,11 @@ grid()
 abline(h=0)
 abline(v=0)
 
-
-res.mgcca <- mgcca(list(X_agric, X_ind, X_polit), scores=TRUE)
+library(microbenchmark)
+microbenchmark(
+  mgcca = res.mgcca <- mgcca(list(X_agric, X_ind, X_polit), scores=FALSE),
+  gcca = res.gcca <- gcca(list(X_agric, X_ind, X_polit), scores=FALSE)
+)
 
 
 plotVar(res.mgcca, cor.thres = 0, legend.show = FALSE, tcolors = c("red", "blue", "darkgreen"),

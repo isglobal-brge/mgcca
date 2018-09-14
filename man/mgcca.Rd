@@ -4,8 +4,8 @@
 \alias{mgcca}
 \title{Generalized canonical correlation with missing individuals}
 \usage{
-mgcca(x, nfac = 2, scale = TRUE, mc.cores = 1, method = "Rfast",
-  inv = "solve", ...)
+mgcca(x, nfac = 2, scale = TRUE, pval = TRUE, scores = FALSE,
+  method = "solve", lambda, mc.cores = 1, ...)
 }
 \arguments{
 \item{x}{list of matrices. Each matrix should have the ids in the
@@ -15,29 +15,40 @@ rownames. Missing is not allowed (see details)}
 
 \item{scale}{...}
 
-\item{mc.cores}{...}
+\item{pval}{should p-values of correlation between variables and shared canonical variates be computed? Default is TRUE.}
+
+\item{scores}{should canonical variables be computed for each table?
+Default is FALSE. See details}
 
 \item{method}{...}
 
-\item{inv}{...}
+\item{lambda}{...}
+
+\item{mc.cores}{...}
 }
 \value{
-A list of three components with ...
+a list consisting of
+  \item{Y}{canonical components for the shared space}
+  \item{corsY}{correlation between variables and shared canonical components}
+  \item{scores}{canonical componets for each table}
+  \item{p.values}{p-values of correlation between variables and shared canonical components}
+  \item{AVE}{indicators of model quality based on the Average Variance Explained (AVE): AVE for each table, AVE_outer (average accross tables), AVE_inner(for the shared component).}
 }
 \description{
 Generalized canonical correlation with missing individuals
 }
 \details{
-eigen with Rfast hd.eigen select number of components speed up process
-rownames matrices ...  avisar que se reordenan y que pueden haber más (todos)
+eigen with Rfast hd.eigen select number of components speed up process (RSpectra?)
+rownames matrices ... si hay distintos ordena - si no, no.
 missings ...  dos opciones#'
+scores .. si queremos correlation with each table!
 inversa ...
 "solve" para n>>p (pero lento) (solve function)
-"fast" para n>>p con n grande (Rfast spdinv)
+"penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
 "geninv" n<<p generalized inverse (rfunctions geninv)
-"penalized" penalized adding lambda*I (rfunctions cgls)
 "ginv" generalized inverse (MASS ginv)
 }
 \examples{
 see vignette
+
 }
