@@ -2,9 +2,9 @@
 title: "Generalized Canonical Correlation with missing individuals"
 subtitle: "Juan R. Gonzalez and Isaac Subirana"
 author: |
-  | Institute for Global Health (ISGlobal), Barcelona, Spain
-  | Bioinformatics Research Group in Epidemiolgy (BRGE)
-  | http://brge.isglobal.org
+   Institute for Global Health (ISGlobal), Barcelona, Spain
+   Bioinformatics Research Group in Epidemiolgy (BRGE)
+   http://brge.isglobal.org
 date: "`r Sys.Date()`"
 package: "`r pkg_ver('mgcca')`"
 output: 
@@ -25,25 +25,16 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE,
 
 # Introduction
 
-This manual describes the gada package that implements a flexible and efficient analysis pipeline to detect genomic copy number alterations from microarray data. The package can import the raw copy number normalized intensities provided by Illumina BeadStudio, Affymetrix powertools, or any similar program from Bioconductor which is able to prepare data in pennCNV format. Probes of different samples should provided into separate files and can be analyzed on a standalone
-workstation or in parallel using a cluster/multicore computer. The speed and accuracy of the genome alteration detection analysis (GADA) approach combined with parallel computing results in one of the
-fastest and most accurate methods, and it is especially suitable to extract copy number alterations (CNAs) on genomewide studies involving hundreds of samples utilizing high density arrays with millions of markers.
-
+This manual describes ...
 
 # Getting started
 The development version of `mgcca` package can be installed from BRGE GitHub repository:
 
-```{r install_gada, eval=FALSE}
+```{r install_mgcca, eval=FALSE}
 devtools::install_github("isglobal-brge/mgcca")
 ```
 
-The package depends on other R/Bioc packages that can be installed using standard functions (`install.packages` and/or `biocLite`). `mgcca` also depends on `rfunctions` package that can be installed from GitHub by:
-
-```{r install_rfunctions, eval=FALSE}
-devtools::install_github("jaredhuling/rfunctions")
-```
-
-Then, the package can be loaded into R as usual
+The package depends on other R/Bioc packages that can be installed using standard functions (`install.packages` and/or `biocLite`). Then, the package can be loaded into R as usual
 
 ```{r load_library, cache=FALSE}
 library(mgcca)
@@ -126,7 +117,7 @@ Y <- as.matrix(nutrimouse$lipid)
 group <- nutrimouse$genotype
 ```
 
-Table X includes gene expresion on 120 genes potentially involved in nutritional problems, while table Y contains concentration of 21 hepatic fatty acids.  concentration
+Table X includes gene expresion on 120 genes potentially involved in nutritional problems, while table Y contains concentration of 21 hepatic fatty acids concentration.
 
 ```{r desc_nutri}
 dim(X)
@@ -148,7 +139,8 @@ plt.indiv(res.rcca, 1, 2, ind.names = group)
 
 ```{r res_nutri_mgcca, cache=TRUE}
 XX <- list(genes=X, lipids=Y)
-res.mgcca <- mgcca(XX, inv = "penalized", lambda=lambda.est)
+ll <- c(lambda.est$lambda1, lambda.est$lambda2)
+res.mgcca <- mgcca(XX, method = "penalized", lambda=ll)
 ```
 
 ```{r plot_indiv_nutri_mrcca}
@@ -199,34 +191,6 @@ plot(res.mcia, phenovec=group, sample.lab=FALSE, df.color=c("blue", "darkgreen")
 
 # Generalized Canonical Correlation with missing individuals
 
-```{r rcc_missing}
-
-data(ge_cgh_locIGR, package="gliomaData")
-lapply(ge_cgh_locIGR$multiblocks, dim)
-system.time(mod <- mgcca(ge_cgh_locIGR$multiblocks[1:2], inv = "ginv"))
-
-set.seed(12345)
-ids <- rownames(Russett)
-length(ids)
-
-o1 <- sample(ids, length(ids))
-o2 <- sample(ids, 40)
-o3 <- sample(ids, 35)
-o <- intersect(intersect(o1, o2),o3)
-length(o)
-
-X.miss <- list(Xagric=Xagric[o1,], 
-               Xind=Xind[o2,], 
-               Xpolit=Xpolit[o3,])
-
-X.comp <- list(Xagric=Xagric[o,],
-               Xind=Xind[o,],
-               Xplit=Xpolit[o,])
-
-res.miss <- mgcca(X.miss)
-res.comp <- mgcca(X.comp)
-
-```
 
 ```{r sessionInfo}
 sessionInfo()

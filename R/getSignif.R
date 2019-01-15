@@ -1,3 +1,10 @@
+#' Generalized canonical correlation with missing individuals
+#'
+#' @param x an object of class 'mgcca'
+#'
+#' @export
+
+
 getSignif <- function(x, df=NA, pval.cut=0.05, ...){
   if (!inherits(x, "mgcca"))
     stop("mgcca object expected for 'x' argument")

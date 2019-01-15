@@ -1,4 +1,4 @@
-productXKY <- function(i, Y, XKX, inv="solve") {
+productXKY <- function(i, Y, XKX) {
   xkx <- XKX[[i]][[1]]
   xk <- XKX[[i]][[2]]
   xky <- xk%*%Y
@@ -14,5 +14,3 @@ productYKX <- function(i, Y, K, XX) {
   ans <- yky%*%ykx
   ans
 }
-
-

@@ -1,3 +1,11 @@
+#' Plot variables correlations with shared canonical components
+#'
+#' @param x an object of class 'mgcca'
+#'
+#'
+#' @export
+
+
 plotInds <- function(x, group, ax1=1, ax2=2, col.list, print.labels=FALSE,
                     cex.label=0.8, pos.leg = "bottomright", ...){
   if (!inherits(x, "mgcca"))

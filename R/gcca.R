@@ -80,7 +80,9 @@ gcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   numvars <- min(p) # minimum number of variables
   m <- nrow(x[[1]]) # number of individuals
 
-  Mi <- getSol(x, inv.method, lambda=lambda, mc.cores=mc.cores)
+  sol <- getSol(x, inv.method, lambda=lambda, mc.cores=mc.cores)
+  Mi <- lapply(sol, "[[", 1)
+  Minv <- lapply(sol, "[[", 2)
 
   M <- Reduce('+', Mi)
 
@@ -94,13 +96,10 @@ gcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   rownames(Y) <- rownames(x[[1]])
 
   if (scores) {
-    A <- mclapply(1:n, productXKY, Y=Y, XKX=XKX, mc.cores=mc.cores,
-                inv=inv)
-    As <- mclapply(1:n, getWeights, A=A, XX=X, K=K, mc.cores=mc.cores)
-    scores <- mclapply(1:n, getScores, dat=X, As=As, mc.cores=mc.cores)
+    scores <- mclapply(1:n, getScores0, Y=Y, XX=X, Minv=Minv, mc.cores=mc.cores)
     for (i in 1:n){
-      rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
-      colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
+      rownames(scores[[i]]) <- rownames(x[[i]])
+      colnames(scores[[i]]) <- paste0("comp", 1:nfac)
     }
   }
   else {

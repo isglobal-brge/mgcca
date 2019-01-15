@@ -3,6 +3,7 @@
 #' @param x an object of class 'mgcca'
 #'
 #'
+#' @export
 #' @importFrom made4 plotgenes
 
 
