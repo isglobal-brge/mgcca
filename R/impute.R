@@ -1,12 +1,16 @@
 #' Imputes each assay matrix data from a MultiAssayExperiment object
 #' @param method ...
+#' @param remove.col
+#' @param remove.row
 #' @importFrom impute impute.knn
+#' @importFrom Hmisc
 
-### --> TO DO 
-
-impute <- function(multiassayexperiment, method){
+impute <- function(multiassayexperiment, method, remove.col = FALSE, 
+                   impute.zero = FALSE, rowmax = 0.5, colmax = 0.8, ...){
   
-  ### Check that the object is a multiassay experiment...
+  # Check that the input is a MultiAssayExperiment
+  if (!class(multiassayexperiment) == "MultiAssayExperiment")
+    stop("Input must be a 'MultiAssayExperiment' object \n")
   
   # Check that method is provided
   inv.type <- c("knn", "hmisc")
@@ -14,26 +18,33 @@ impute <- function(multiassayexperiment, method){
   if (inv.method == 0)
     stop("method should be 'knn' or 'hmisc' \n")
   
-  ### Remove columns with more than 80% of NA / 0 data...??
-  #m_list[[1]][, -which(colMeans(is.na(m_list[[1]])) > 0.5)]
-  #little[,-which(colMeans(is.na(little))>=0.8)]
+  # Check other parameters?
   
+  # KNN method
   if (inv.method == 1)
     for (assay in 1:length(multiassayexperiment)) {
-      matrix_to_impute <- as.matrix(assays(multiassayexperiment)[[assay]]) 
-      imputed_matrix <- impute.knn(matrix_to_impute, k = 10, rowmax = 0.5, colmax = 0.8)
+      matrix_to_impute <- as.matrix(assays(multiassayexperiment)[[assay]])
+      if (impute.zero)
+        # Transform 0 to NA (doesn't work for 0.000?)
+        matrix_to_impute = replace(matrix_to_impute, which(matrix_to_impute == 0), NA)
+      if (remove.col)
+        # Remove columns (samples) with more than colmax of NA
+        matrix_to_impute <- matrix_to_impute[, which(colMeans(is.na(matrix_to_impute)) < colmax)]
+      imputed_matrix <- impute.knn(matrix_to_impute, rowmax, colmax, ...)
       multiassayexperiment[[assay]] <- imputed_matrix$data
     }
   
+  # Hmisc method
   ### Do the hmisc method...
-    
+  
   ans <- multiassayexperiment
 }
 
+### no me funciona el @ImportFrom
+### Remove rows with a lot of NA's/0?
 
-
-
-
+# Remove columns with more than 80% of 0? ALREADY DONE IF TRANSFORMED TO NA
+#matrix_to_impute <- matrix_to_impute[,which(colMeans(matrix_to_impute==0) < 0.8)]
 
 
 
