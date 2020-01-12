@@ -18,8 +18,6 @@ impute <- function(multiassayexperiment, method, remove.col = FALSE,
   if (inv.method == 0)
     stop("method should be 'knn' or 'hmisc' \n")
   
-  # Check other parameters?
-  
   # KNN method
   if (inv.method == 1)
     for (assay in 1:length(multiassayexperiment)) {
@@ -37,15 +35,12 @@ impute <- function(multiassayexperiment, method, remove.col = FALSE,
   # Hmisc method
   ### Do the hmisc method...
   
-  ans <- multiassayexperiment
+  multiassayexperiment
+  
 }
 
 ### no me funciona el @ImportFrom
 ### Remove rows with a lot of NA's/0?
-
-# Remove columns with more than 80% of 0? ALREADY DONE IF TRANSFORMED TO NA
-#matrix_to_impute <- matrix_to_impute[,which(colMeans(matrix_to_impute==0) < 0.8)]
-
 
 
 
