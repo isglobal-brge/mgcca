@@ -28,6 +28,8 @@ Load other necessary libraries.
 setwd("/home/guille/Guille/ISGlobal/mgcca/R/")
 source("/home/guille/Guille/ISGlobal/mgcca/R/getTables.R")
 source("/home/guille/Guille/ISGlobal/mgcca/R/impute.R")
+source("/home/guille/Guille/ISGlobal/mgcca/R/genCoords.R")
+source("/home/guille/Guille/ISGlobal/mgcca/R/format.R")
 
 # libraries needed by TCGA data
 library(curatedTCGAData)
@@ -49,8 +51,11 @@ We can check the available cancer codes and assays in TCGA repositories. Let's c
 
 # Available cancer codes and assays
 curatedTCGAData(diseaseCode = "*", assays = "*", dry.run = TRUE)
-# MultiAssayExperiment
-multiassayexperiment <- curatedTCGAData("ACC", c("RNASeq2GeneNorm","Methylation"), FALSE)
+# MultiAssayExperiment created with two assays: RNA-seq and Methylation
+#multiassayexperiment <- curatedTCGAData("ACC", c("RNASeq2GeneNorm","Methylation", "miRNASeqGene","RPPAArray" ), FALSE)
+multiassayexperiment <- curatedTCGAData("ACC", c("RNASeq2GeneNorm","Methylation" ), FALSE)
+multiassayexperiment
+
 
 ```
 
@@ -66,7 +71,6 @@ dim(assay(multiassayexperiment[[1]]))
 # RNA-seq data
 assay(multiassayexperiment[[2]])[1:5,1:5]
 dim(assay(multiassayexperiment[[2]]))
-
 # We can see there are some missing values (NA and/or 0)
 table(is.na(assay(multiassayexperiment[[1]])))
 table(is.na(assay(multiassayexperiment[[2]])))
@@ -76,7 +80,7 @@ table(is.na(assay(multiassayexperiment[[2]])))
 
 ## 2) Imputation
 
-As observed above, we can impute the missing values using K-Nearest Neighbors method (KNN) from `impute.knn` package. Only NA's will be imputed by default. However, 0 values can (if desired) be imputed aswell (impute.zero = TRUE). Take into account that samples must be columns and features must be rows (this is expected by the impute.knn function by default).
+As observed above, we can impute the missing values using K-Nearest Neighbors method (KNN) from `impute.knn` package implemented in our package with the function `impute`. Only NA's will be imputed by default. However, 0 values can (if desired) be imputed aswell (`impute.zero = TRUE`). Take into account that samples must be columns and features must be rows (this is expected by the `impute.knn` function by default).
 
 ```{r imputation, echo=TRUE, message=FALSE}
 
@@ -141,19 +145,8 @@ In our case, methylation data seems to be of character, instead of numeric, and 
 tables_list[[1]][1,1]
 class(tables_list[[1]][1,1])
 
-# Change character numbers into numeric values from the methylation matrix
-# First, keep rownames and colnames from the original matrix
-meth_colnames <- colnames(tables_list[[1]])
-meth_rownames <- rownames(tables_list[[1]])
-meth_numeric <- as.numeric(tables_list[[1]])
-# Create new matrix with the same values and dimensions of the original matrix. By default, values will be numeric.
-m <- matrix(data=meth_numeric, ncol=dim(tables_list[[1]])[2], 
-            nrow=dim(tables_list[[1]])[1])
-# Reassign colnames and rownames from the original matrix
-colnames(m) <- meth_colnames
-rownames(m) <- meth_rownames
-# Update the matrix in the list
-tables_list[[1]] <- m
+# Use our in-house function
+tables_list <- matrix.chr2num(tables_list, index = 1)
 
 # Confirm it's numeric now
 tables_list[[1]][1,1]
@@ -169,7 +162,7 @@ Now we can run mgcca! However, due to speed limitations, let's make a subset of 
 
 class(tables_list[[1]])
 table_list.subset <- lapply(tables_list, function(x) x[,1:100])
-
+lapply(table_list.subset, function(x) x[1:5,1:5])
 ```
 
 Run mgcca, select the grouping variable for the plot, and finally plot the result.
@@ -188,7 +181,6 @@ group <- factor(multiassayexperiment$vital_status)
 #plot
 plotInds(mgcca.result, group=group, pos.leg = "topright")
 
-
 ```
 
 
@@ -205,119 +197,37 @@ NOTE 1: we need at least 2 genes, because (I think) imputation cannot be done if
 NOTE 2: The first thing to do is to find the genes names (and cpgs) belonging to that particular genomic coordinates, but in this case we already know their names. That means that genomic coordinates can be given without knowing the actual genes, because if you know the actual genes you just create a list with its names (see below).
 
 ```{r genomic.ranges}
+
 library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 library(org.Hs.eg.db)
 
-# Our genomic coordinate examples:
-## TP53: 7565097-7590868 +-2kb -->  7564897-7592868 (NOT USED)
-# MEN1: 64570986-64578766 +-2kb --> 64568986-64580766
-# IGF2: 2150342-2170833 +-2kb --> 2148342-2172833
+### 1) Save the genomic coordinates that we are interested in
+# MEN1 --> chr11: 64570986-64578766 +-2kb --> 64568986-64580766
 
-### 1) Make list of genomic coordinates for the interested genes
+chr.coords <- GRanges("11:64550986-64578766") 
 
-genes.coords <- list(MEN1=c(64568986,64580766), IGF2=c(2148342,2172833), TP53=c(7564897,7592868))
+### 2) Annotate each assay independently to obtain the genomic coordinates for all features, in case it is not already done
 
-### 2) Subset of RNA-seq genes with specific genomic coordinates
+### 2.1) Methylation annotation
+# We already have the genomic coordinates for each CpGs in the rowData dataframe
+rowData(multiassayexperiment[[1]])
 
-# RNA-seq assay does not provide genomic coordinates information in the metadata, thus, first we will have to annotate the assay (it will split the assay in two: ranged RangedSummarizedExperiment containing the coordinates, and unranged SummarizedExperiment, not containing them
-mae <- TCGAutils::symbolsToRanges(multiassayexperiment)
-mae
+### 2.2) RNA-seq annotation
+# It will split the assay in two: ranged RangedSummarizedExperiment containing the features with existing genomic coordinates, and unranged SummarizedExperiment, not containing them
+mae.annotated <- TCGAutils::symbolsToRanges(multiassayexperiment)
 
-# Keep the complete genomic coordinates in a GRanges object
-mae.ranges <- rowRanges(mae[[2]])
+### 3) Remove the non-used assays (unranged SummarizedExperiment)
 
-# Subset of genes names using the genomic range
-GRanges.list <- lapply(genes.coords, function(x) {
-  mae.ranges[start(mae.ranges) >= x[1] & end(mae.ranges) <= x[2] ]
-  } )
-GRanges.genes.coords <- GRanges()
-for (i in 1:length(GRanges.list)) {
-  GRanges.genes.coords <- c(GRanges.genes.coords,GRanges.list[[i]])
-}
+mae.annotated[[3]] <- NULL
 
+### 4) Obtain a subset of features (CpGs and genes) that fall within the interested genomic coordinates
 
-#GRanges.genes.coords <- c(GRanges.list[[1]],GRanges.list[[2]],GRanges.list[[3]])
+mae.subset <- genCoords(multiassayexperiment = mae.annotated , gen.coords = chr.coords,
+          meth.index = 1, col.name = "Genomic_Coordinate")
 
-# a <- mae.ranges[start(mae.ranges) >= 2148342 & end(mae.ranges) <= 2172833 ]
-# b <- mae.ranges[start(mae.ranges) >= 64568986 & end(mae.ranges) <= 64580766 ]
-# c <- c(a,b)
-# genes.names <- names(c)
+# mae.subset <- genCoords(multiassayexperiment = mae.annotated , gen.coords = chr.coords,
+#           type.omics = c("methylation","rnaseq"), col.name = "Genomic_Coordinate")
 
-genes.names <- names(GRanges.genes.coords)
-
-### 3) Subset of Methylation cpgs with specific genomic coordinates
-
-# Methylation already have the genomic coordinate (singular, not range) in the metadata of the assay
-rowData(mae[[1]])$Genomic_Coordinate <- as.numeric(rowData(mae[[1]])$Genomic_Coordinate)
-
-# Subset of methylation cpgs names with the same genomic coordinates as before
-
-# cpgs.coords1 <- rowData(mae[[1]])[rowData(mae[[1]])$Genomic_Coordinate >= 2148342 & rowData(mae[[1]])$Genomic_Coordinate <= 2172833, ]
-# cpgs.coords2 <- rowData(mae[[1]])[rowData(mae[[1]])$Genomic_Coordinate >= 64568986 & rowData(mae[[1]])$Genomic_Coordinate <= 64580766, ]
-# cpgs.names <- rownames(rbind(cpgs.coords1,cpgs.coords2))
-
-cpgs.coords.list <- lapply(genes.coords, function(x) {
-  rowData(mae[[1]])[rowData(mae[[1]])$Genomic_Coordinate >= x[1] & rowData(mae[[1]])$Genomic_Coordinate <= x[2], ]
-  } )
-cpgs.names <- c()
-for (i in 1:length(cpgs.coords.list)) {
-  cpgs.names <- c(cpgs.names,rownames(cpgs.coords.list[[i]]))
-}
-
-#cpgs.names <- c(rownames(cpgs.coords.list[[1]]), rownames(cpgs.coords.list[[2]]),rownames(cpgs.coords.list[[3]]))
-
-### 4) MultiAssayExperiment subset using both cpgs and gene names obtained above by genomic coordinates
-
-# First create a list with each assay for the specified genes
-subset.list <- list()
-subset.list[[names(experiments(multiassayexperiment)[1])]] <- cpgs.names
-subset.list[[names(experiments(multiassayexperiment)[2])]] <- genes.names
-
-# Now make the subset for the multiassayexperiment using that list
-mae.subset <- subsetByRow(multiassayexperiment, subset.list)
-mae.subset
-
-########################################################################################################
-
-### directly with genomic ranges (ONLY WORKS FOR RANGEDSUMMARIZEDEXPERIMENTS :((  )
-# gr <- GRanges(seqnames = "19", strand = "-",
-#               ranges = IRanges(start = 58858172,
-#                                end = 58874214))
-# 
-# subsetted <- subsetByRow(mae, gr, maxgap = 2L, type = "within")
-# subsetted
-
-# create IRange object
-#gen.coord <- IRanges(start=58858172, end=58874214, width=NULL, names=NULL)
-#subsetByOverlaps(mae.ranges, gen.coord)
-
-
-#### OBTAINING ACTUAL CORRECT GENE COORDINATES ####
-
-UCSC.hg19<- TxDb.Hsapiens.UCSC.hg19.knownGene
-hg19.genes<- genes(UCSC.hg19)
-
-gene_symbol<- AnnotationDbi::select(org.Hs.eg.db, keys=hg19.genes$gene_id, 
-
-                                    columns="SYMBOL", keytype="ENTREZID")
-
-all.equal(hg19.genes$gene_id, gene_symbol$ENTREZID)
-
-hg19.genes$gene_id<- gene_symbol$SYMBOL
-
-# Annotations from the ones extracted from UCSC web browser and the ones from the package here differs
-# This is because there are different transcripts! And maybe the coordinates obtained by the web browser are the ones from one specific transcript.
-which(hg19.genes$gene_id == "MEN1")
-which(hg19.genes$gene_id == "IGF2")
-which(hg19.genes$gene_id == "TP53")
-
-hg19.genes[10521] # <-- CORRECT GENOMIC COORDINATES (START OF THE FIRST TRANSCRIPT AND END OF THE LAST TRANSCRIPT)
-hg19.genes[12248] # 64570986-64578766
-hg19.genes[18551] # 7565097-7590868
-
-# To check all transcripts from a given gene
-txs <- transcriptsBy(TxDb.Hsapiens.UCSC.hg19.knownGene)
-txs["3481"]
 
 ```
 
@@ -342,19 +252,7 @@ for (assay in 1:length(tables_list.subset)) {
 
 ### 4) Convert Character matrix (methylation) to Numeric matrix
 
-# Change character numbers into numeric values from the methylation matrix
-# First, keep rownames and colnames from the original matrix
-meth_colnames <- colnames(tables_list.subset[[1]])
-meth_rownames <- rownames(tables_list.subset[[1]])
-meth_numeric <- as.numeric(tables_list.subset[[1]])
-# Create new matrix with the same values and dimensions of the original matrix. By default, values will be numeric.
-m <- matrix(data=meth_numeric, ncol=dim(tables_list.subset[[1]])[2], 
-            nrow=dim(tables_list.subset[[1]])[1])
-# Reassign colnames and rownames from the original matrix
-colnames(m) <- meth_colnames
-rownames(m) <- meth_rownames
-# Update the matrix in the list
-tables_list.subset[[1]] <- m
+tables_list.subset <- matrix.chr2num(tables_list.subset, index = 1)
 
 ### 5) mgcca
 
@@ -369,6 +267,8 @@ group <- factor(multiassayexperiment$vital_status)
 
 #plot
 plotInds(mgcca.result, group=group, pos.leg = "bottomleft")
+
+##PCH=16 permite cambiar el background y la bolita del plot
 
 ```
 
