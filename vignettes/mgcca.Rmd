@@ -138,9 +138,9 @@ plt.indiv(res.rcca, 1, 2, ind.names = group)
 
 
 ```{r res_nutri_mgcca, cache=TRUE}
-XX <- list(genes=X, lipids=Y)
+XX <- list(genes=X.s, lipids=Y.s)
 ll <- c(lambda.est$lambda1, lambda.est$lambda2)
-res.mgcca <- mgcca(XX, method = "penalized", lambda=ll)
+res.mgcca <- mgcca(XX, method = "penalized", lambda=c(0.001, 0.1))
 ```
 
 ```{r plot_indiv_nutri_mrcca}
@@ -170,11 +170,11 @@ plotVars(res.mgcca, nlab=5)
 ```
 
 ```{r vars_mgcca_sig}
-getSignif(res.mgcca, pval=1e-6, df="genes")
+getSignif(res.mgcca, pval=1e-3, df="genes")
 ```
 
 ```{r plot_vars_mgcca_sig}
-var.signif <- getSignif(res.mgcca, pval=1e-6, df="genes")$variable
+var.signif <- getSignif(res.mgcca, pval=1e-3, df="genes")$variable
 plotVars(res.mgcca, var=var.signif, var.col = rep("red", length(var.signif)), var.lab=TRUE, df="genes")
 ```
 
