@@ -12,9 +12,10 @@ getXKX_bd.i <- function(i, XX, K, inv, lambda)
   M <- BigDataStatMeth::blockmult(xk,XX[[i]])
 
   if (inv==1) # solve
-    xkx <- BigDataStatMeth::bdInvCholesky(M)
+    xkx <- bdInvCholesky(M)
   else if (inv==2) # penalized
-    xkx <- BigDataStatMeth::bdInvCholesky(M + diag(nrow(M))*lambda[i])
+    xkx <- bdInvCholesky(M + bdwproduct(diag(nrow(M)), lambda[i], "wX"))
+
   else
     stop("need correct method")
 

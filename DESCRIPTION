@@ -20,4 +20,5 @@ URL: http://isglobal.brge.org
 VignetteBuilder: knitr
 Suggests: BiocStyle, knitr, rmarkdown
 LazyData: TRUE
-RoxygenNote: 6.0.1
+Encoding: UTF-8
+RoxygenNote: 7.1.1

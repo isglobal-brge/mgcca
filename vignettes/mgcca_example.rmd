@@ -25,11 +25,8 @@ Load other necessary libraries.
 
 ```{r libraries, echo=TRUE, message=FALSE}
 
-setwd("/home/guille/Guille/ISGlobal/mgcca/R/")
-source("/home/guille/Guille/ISGlobal/mgcca/R/getTables.R")
-source("/home/guille/Guille/ISGlobal/mgcca/R/impute.R")
-source("/home/guille/Guille/ISGlobal/mgcca/R/genCoords.R")
-source("/home/guille/Guille/ISGlobal/mgcca/R/format.R")
+# utility library
+library(R.utils)
 
 # libraries needed by TCGA data
 library(curatedTCGAData)
@@ -40,6 +37,15 @@ library(MultiAssayExperiment)
 library(RSpectra)
 library(impute)
 
+# Define path for sources
+curpath <- paste0(getAbsolutePath(getwd()),"/../R/")
+setwd(curpath)
+
+# Get sources
+source("getTables.R")
+source("impute.R")
+source("genCoords.R")
+source("format.R")
 ```
 
 

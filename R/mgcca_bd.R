@@ -1,4 +1,4 @@
-#' Generalized canonical correlation with missing individuals
+#' Generalized canonical correlation with missing individuals for big data
 #'
 #' @param x list of matrices. Each matrix should have the ids in the
 #' rownames. Missing is not allowed (see details)
@@ -38,7 +38,7 @@
 #' @importFrom RSpectra eigs eigs_sym
 
 mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
-                     method="solve", lambda, mc.cores=1, ...) {
+                  method="solve", lambda, mc.cores=1, ...) {
 
   inv.type <- c("solve", "penalized")
   inv.method <- charmatch(method, inv.type, nomatch = 0)
@@ -58,11 +58,13 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   nas <- sapply(x, function(x) any(is.na(x)))
 
   if (any(nas))
-    stop("Missing values are not allowed. Either use 'impute' package or
+   stop("Missing values are not allowed. Either use 'impute' package or
         use tables with complete cases.")
 
   if (scale)
     x <- lapply(x, scale)
+    #..# x <- lapply(x, BigDataStatMeth::Normalize_Data)
+
 
 
   if (!is.list(x))
@@ -71,17 +73,15 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   if (any(unlist(lapply(x, function(x) !is.matrix(x)))))
     x <- lapply(x, as.matrix)
 
-  ns <- sapply(x, nrow)  #.. Es queda amb el nombre de files de cada matriu de la llista
+  ns <- sapply(x, nrow)
   if(max(ns)==min(ns)) # check whether there are missing individuals
     rn <- Reduce('union', lapply(x, rownames))
   else
     rn <- sort(Reduce('union', lapply(x, rownames)))
   m <- length(rn)  # get the maximum number of individuals
 
-  XK <- parallel::mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)  #.. Crea una matriu diagonal del tamany de la original
-  #.. i assigna els rownames [K] + Matriu X original amb rownames
-  #.. Aquí te en compte els na
-  X <- lapply(XK, '[[', 1) #.. Aquí només assigna a X i K les matrius diagonals aconseguide a XK --> Llista [1,2≠≠´]
+  XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
+  X <- lapply(XK, '[[', 1)
   K <- lapply(XK, '[[', 2)
 
   p <- sapply(X, ncol) # number of variables per table
@@ -90,7 +90,7 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   # Get the required XKX product and inverse that is computed multiple times
   XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
-  Mi <- parallel::mclapply(1:n, solution_bd, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
+  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
   M <- Reduce('+', Mi)
   Ksum <- Reduce('+', K)
 
@@ -100,31 +100,31 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
 
   # ... this is much faster! (new function mult_wXw)
   Ksum05 <- diag(Ksum)^(-0.5)
-  # MKsum05 <- mult_wXw(M, Ksum05)
-  MKsum05 <- BigDataStatMeth::bdwXw( M, Ksum05, 'wXw')
+  MKsum05 <- mult_wXw(M, Ksum05)
 
 
-  #..# if(isSymmetric(MKsum05))
-  #..#   eig <- eigs_sym(MKsum05, k=nfac, ...)
-  #..# else
-  #..#   eig <- eigs(MKsum05, k=nfac, ...)
+#  if(isSymmetric(MKsum05))
+#    eig <- eigs_sym(MKsum05, k=nfac, ...)
+#  else
+#    eig <- eigs(MKsum05, k=nfac, ...)
 
+  # eig <- BigDataStatMeth::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
+  eig <- BigDataStatMeth::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
 
-  #### AQUÍ !!!!!! #####
-  eig <- bdSVD(MKsum05, k=nfac, bcenter = FALSE, bscale = FALSE)
-
-  #..# Yast <- Re(eig$vectors)
-  Yast <- Re(eig$v)
+  #.bd.# Yast <- Re(eig$vectors)
+  Yast <- Re(eig$u[,1:nfac])
 
   # Y<-sqrt(n)*Ksum05%*%Yast
-  Y <- sqrt(n)*mult_wX(Yast, Ksum05)
+  #.bd.# Y <- sqrt(n)*mult_wX(Yast, Ksum05)
+
+  Y <- sqrt(n)* bdwproduct(Yast, Ksum05, "wX")
   colnames(Y) <- paste0("comp", 1:ncol(Y))
   rownames(Y) <- rn
 
   if (scores) {
-    A <- mclapply(1:n, productXKY, Y=Y, XKX=XKX, mc.cores=mc.cores)
-    As <- mclapply(1:n, getWeights, A=A, XX=X, K=K, mc.cores=mc.cores)
-    scores <- mclapply(1:n, getScores, dat=X, As=As, mc.cores=mc.cores)
+    A <- mclapply(1:n, productXKY_bd, Y=Y, XKX=XKX, mc.cores=mc.cores)
+    As <- mclapply(1:n, getWeights_bd, A=A, XX=X, K=K, mc.cores=mc.cores)
+    scores <- mclapply(1:n, getScores_bd, dat=X, As=As, mc.cores=mc.cores)
     for (i in 1:n){
       rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
       colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
@@ -164,7 +164,7 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   outer <- matrix(unlist(AVE_X), nrow = nfac)
   AVE_outer <- sapply(1:nfac, function(j, p) sum(p * outer[j,])/sum(p),
                       p=p)
-  AVE_inner <- Re(eig$values)
+  AVE_inner <- Re(eig$v[1:nfac])
   AVE <- list(AVE_X = AVE_X,
               AVE_outer_model = AVE_outer,
               AVE_inner_model = AVE_inner)
