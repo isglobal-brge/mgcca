@@ -1,8 +1,21 @@
 ---
-title: "mgcca_example"
-author: "Guillermo Palou Márquez"
-date: "9 December 2019"
-output: html_document
+title: "Generalized Canonical Correlation with missing individuals - Examples"
+subtitle: "Dolors Pelegrí-Sisó, Guillermo Palou Márquez and Juan R. Gonzalez"
+author: |
+   Institute for Global Health (ISGlobal), Barcelona, Spain
+   Bioinformatics Research Group in Epidemiolgy (BRGE)
+   http://brge.isglobal.org
+date: "`r Sys.Date()`"
+package: "`r pkg_ver('mgcca')`"
+output: 
+  BiocStyle::html_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{Generalized Canonical Correlation with missing individuals - Examples}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc} 
 ---
 
 ```{r setup, include=FALSE}
@@ -37,15 +50,6 @@ library(MultiAssayExperiment)
 library(RSpectra)
 library(impute)
 
-# Define path for sources
-curpath <- paste0(getAbsolutePath(getwd()),"/../R/")
-setwd(curpath)
-
-# Get sources
-source("getTables.R")
-source("impute.R")
-source("genCoords.R")
-source("format.R")
 ```
 
 
@@ -273,8 +277,6 @@ group <- factor(multiassayexperiment$vital_status)
 
 #plot
 plotInds(mgcca.result, group=group, pos.leg = "bottomleft")
-
-##PCH=16 permite cambiar el background y la bolita del plot
 
 ```
 
