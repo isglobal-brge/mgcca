@@ -4,10 +4,14 @@ subtitle: "Dolors Pelegrí-Sisó, Guillermo Palou Márquez and Juan R. Gonzalez"
 author: |
    Institute for Global Health (ISGlobal), Barcelona, Spain
    Bioinformatics Research Group in Epidemiolgy (BRGE)
-   http://brge.isglobal.org
+   https://brge.isglobal.org
 date: "`r Sys.Date()`"
 package: "`r pkg_ver('mgcca')`"
 output: 
+  BiocStyle::pdf_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
   BiocStyle::html_document:
     number_sections: true
     toc: yes
@@ -19,16 +23,19 @@ vignette: >
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 ```
 
-### Mgcca with TCGA example data ###
+# Introduction
 
-Install `mgcca` package.
+
+This manual describes how to perform gcca to integrate multiple tables, using the `mgcca` function. The `mgcca` function is designed for small tables, for omics data to work with omics dataset we have implemented the `mgcca_bd` function, which allows to work with large number of variables. We will first show the calculations with `mgcca` and later with `mgcca_bd.`
+
+First, we have to install `mgcca` and `BigDataStatMeth` packages, for further information about installation, please see vignette for `mgcca` package.
 
 ```{r mgcca.install, echo=TRUE, message=FALSE}
 
-rm(list=ls())
+# rm(list=ls())
 #devtools::install_github("isglobal-brge/mgcca")
 library(mgcca)
 
@@ -50,23 +57,21 @@ library(MultiAssayExperiment)
 library(RSpectra)
 library(impute)
 
+# Benchmark
+library(microbenchmark)
 ```
 
 
-## 1) Download TCGA data
+# Download TCGA data
 
-We can check the available cancer codes and assays in TCGA repositories. Let's choose ACC cancer, and two assays: RNA-seq and Methylation.
+Data used to perform analysis was data referred to assays RNASeq (Normalized) and Methilation from Adrenocortical carcinoma. We can check the available cancer codes and assays in TCGA repositories. Let's choose ACC cancer, and two assays: RNA-seq and Methylation.
 
 ```{r tcga.data, echo=TRUE, message=FALSE}
 
 # Available cancer codes and assays
 curatedTCGAData(diseaseCode = "*", assays = "*", dry.run = TRUE)
 # MultiAssayExperiment created with two assays: RNA-seq and Methylation
-#multiassayexperiment <- curatedTCGAData("ACC", c("RNASeq2GeneNorm","Methylation", "miRNASeqGene","RPPAArray" ), FALSE)
-multiassayexperiment <- curatedTCGAData("ACC", c("RNASeq2GeneNorm","Methylation" ), FALSE)
-multiassayexperiment
-
-
+multiassayexperiment <- curatedTCGAData("ACC",c("RNASeq2GeneNorm","Methylation" ), FALSE)
 ```
 
 Now let's check how this MultiAssayExperiment looks like.
@@ -75,12 +80,15 @@ Now let's check how this MultiAssayExperiment looks like.
 
 class(multiassayexperiment)
 multiassayexperiment
+
 # Methylation data
 assay(multiassayexperiment[[1]])[1:5,1:5]
 dim(assay(multiassayexperiment[[1]]))
+
 # RNA-seq data
 assay(multiassayexperiment[[2]])[1:5,1:5]
 dim(assay(multiassayexperiment[[2]]))
+
 # We can see there are some missing values (NA and/or 0)
 table(is.na(assay(multiassayexperiment[[1]])))
 table(is.na(assay(multiassayexperiment[[2]])))
@@ -88,11 +96,11 @@ table(is.na(assay(multiassayexperiment[[2]])))
 ```
 
 
-## 2) Imputation
+# Data imputation
 
 As observed above, we can impute the missing values using K-Nearest Neighbors method (KNN) from `impute.knn` package implemented in our package with the function `impute`. Only NA's will be imputed by default. However, 0 values can (if desired) be imputed aswell (`impute.zero = TRUE`). Take into account that samples must be columns and features must be rows (this is expected by the `impute.knn` function by default).
 
-```{r imputation, echo=TRUE, message=FALSE}
+```{r imputation, echo=TRUE, message=FALSE, warning=FALSE, comment=FALSE, results='hide'}
 
 # Arguments:
 # subset: MultiAssayExperiment
@@ -103,12 +111,13 @@ As observed above, we can impute the missing values using K-Nearest Neighbors me
 # remove.col: To remove columns with more than colmax% missing data.
 # impute.zero: To impute 0 values.
 
-multiassayexperiment.imputed <- impute(multiassayexperiment, method = "knn", k = 10, 
-                                       rowmax = 0.5, colmax = 0.8, remove.col = TRUE, impute.zero = TRUE)
+multiassayexperiment.imputed <- impute(multiassayexperiment, method = "knn", 
+                                       k = 10, rowmax = 0.5, colmax = 0.8, 
+                                       remove.col = TRUE, impute.zero = TRUE)
 
 ```
 
-## 3) Obtain a list of tables (matrices), one for each assay
+# Convert `MultiAssayExperiment` into a list of assays
 
 We need to obtain a list of tables/matrices, one for each assay, to be able to run `mgcca`. The resulting matrices will have the rows and columns transposed, i.e. samples in rows and features in columns (because this is expected by the `mgcca` function).
 
@@ -126,13 +135,11 @@ dim(tables_list[[2]])
 
 ```
 
-## 4) Additional pre-processing (depending on your data)
+# Data preprocessing
 
-Before running `mgcca`, we need to make some changes that depends on the type of data you have.
+## Sample names
 
-# Sample names
-
-First, samples names must at least overlap between tables (there can be missing individuals, but not all of them, of course). In TCGA data, samples names are barcodes that contain information about the type of data, batches, etc. Thus, samples names are different from among different assays. Let's obtain the real sample ID's from the same barcodes.
+First, samples names must at least overlap between tables (there can be missing individuals, but not all of them). In TCGA data, samples names are barcodes that contain information about the type of data, batches, etc. Thus, samples names are different from among different assays. Let's obtain the real sample ID's from the same barcodes.
 
 ```{r tcga.barcode, echo=TRUE, message=FALSE}
 
@@ -145,7 +152,7 @@ for (assay in 1:length(tables_list)) {
 
 ```
 
-# Tables containing character numbers
+## Tables containing character numbers
 
 In our case, methylation data seems to be of character, instead of numeric, and although the imputation can be done with that type of data this will give an error in `mgcca`, because it expects numeric matrices. Thus, let's change this matrix to numeric values.
 
@@ -164,7 +171,7 @@ class(tables_list[[1]][1,1])
 
 ```
 
-# 4) MGCCA
+# MGCCA
 
 Now we can run mgcca! However, due to speed limitations, let's make a subset of data.
 
@@ -175,6 +182,7 @@ table_list.subset <- lapply(tables_list, function(x) x[,1:100])
 lapply(table_list.subset, function(x) x[1:5,1:5])
 ```
 
+## mgcca for small data
 Run mgcca, select the grouping variable for the plot, and finally plot the result.
 
 ```{r mgcca, echo=TRUE, message=FALSE}
@@ -185,16 +193,33 @@ mgcca.result <- mgcca(table_list.subset, method="penalized", lambda=c(0.75,1))
 # grouping variable from the original MultiAssayExperiment
 # In this case, as example, the vital status of the patients with ACC cancer.
 group <- factor(multiassayexperiment$vital_status)
-# miRNA cluster
-#group <- factor(multiassayexperiment$miRNA.cluster)
 
 #plot
 plotInds(mgcca.result, group=group, pos.leg = "topright")
 
 ```
 
+## mgcca_bd for Omics data
 
-# 5) Mgcca for Genomic Ranges
+Run `mgcca_bd`, select the grouping variable for the plot, and finally plot the result.
+
+```{r mgcca_bd, echo=TRUE, message=FALSE}
+
+# mgcca
+mgcca.result.bd <- mgcca(table_list.subset, method="penalized", lambda=c(0.75,1))
+
+# grouping variable from the original MultiAssayExperiment
+group <- factor(multiassayexperiment$vital_status)
+
+#plot
+plotInds(mgcca.result.bd, group=group, pos.leg = "topright")
+
+```
+
+We can observe that plot obtained with `mgcca` and `mgcca_bd` are equal
+
+
+# Mgcca for Genomic Ranges
 
 You can also make a `mgcca` for a specific genomic coordinate that you are interested in. To do so, we will first subset the features from each assay (RNA-seq and methylation) that belong to that particular genomic coordinate.
 AS an example, we will use the coordinates for two genes:
@@ -263,7 +288,12 @@ for (assay in 1:length(tables_list.subset)) {
 ### 4) Convert Character matrix (methylation) to Numeric matrix
 
 tables_list.subset <- matrix.chr2num(tables_list.subset, index = 1)
+```
 
+
+## Mgcca for Genomic Ranges in small matrices
+
+```{r gen.coords.mgcca_small}
 ### 5) mgcca
 
 # mgcca
@@ -281,4 +311,59 @@ plotInds(mgcca.result, group=group, pos.leg = "bottomleft")
 ```
 
 
+## Mgcca for Genomic Ranges and Omics data
 
+```{r gen.coords.mgcca_omics}
+### 5) mgcca
+
+# mgcca
+mgcca.result_bd <- mgcca_bd(tables_list.subset, method="penalized", lambda=c(0.75,1))
+
+# grouping variable from the original MultiAssayExperiment
+# In this case, as example, the vital status of the patients with ACC cancer.
+group <- factor(multiassayexperiment$vital_status)
+# miRNA cluster
+#group <- factor(multiassayexperiment$miRNA.cluster)
+
+#plot
+plotInds(mgcca.result_bd, group=group, pos.leg = "bottomleft")
+
+```
+
+
+
+# Differences between mgcca for small matrix and omics data
+
+
+The main difference between `mgcca` and `mgcca_bd` is that `mgcca_bd` allows you to work with more variables and the execution time is lower in `mgcca_bd` than `mgcca`, here, we show an execution time example
+
+```{r mgcca_bench, echo=TRUE, message=FALSE}
+
+table_list.subset.100 <- lapply(tables_list, function(x) x[,1:100])
+table_list.subset.500 <- lapply(tables_list, function(x) x[,1:500])
+
+res <- microbenchmark( 
+  mgcca(table_list.subset.100, method="penalized", lambda=c(0.75,1)),
+  mgcca_bd(table_list.subset.100, method="penalized", lambda=c(0.75,1)),
+  mgcca(table_list.subset.500, method="penalized", lambda=c(0.75,1)),
+  mgcca_bd(table_list.subset.500, method="penalized", lambda=c(0.75,1)),
+  times = 10, unit = "s")
+
+resdata <- as.data.frame(summary(res)[, c(1:7)])
+
+# we simplify the names to better understand the microbenchmark results
+resdata[,1] <- c("mgcca_100", "mgcca_bd_100","mgcca_500", "mgcca_bd_500" )
+
+print(resdata, digits = 3)
+
+```
+
+So note that execution time with `mgcca_bd` is smaller than execution time with `mgcca`
+
+
+
+# Session information
+
+```{r sesinfo }
+sessionInfo()
+```

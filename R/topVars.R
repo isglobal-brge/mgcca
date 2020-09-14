@@ -1,3 +1,11 @@
+#' Generalized canonical correlation with missing individuals
+#'
+#' @param x an object of class 'mgcca'
+#' @param axis axis to take in to account to get the top values
+#' @param topN number of values to return with topVars if not pval.cut is introduced
+#' @param pval.cut significance level to cut data to return
+#' @export
+
 topVars <- function(x, axis = 1, end = "pos", topN = 5, pval.cut){
   if (!inherits(x, "mgcca"))
     stop("x must be an object of class 'mgcca'")

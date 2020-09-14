@@ -13,6 +13,7 @@ plotInds(
   print.labels = FALSE,
   cex.label = 0.8,
   pos.leg = "bottomright",
+  main = NULL,
   ...
 )
 }

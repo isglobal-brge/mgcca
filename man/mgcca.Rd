@@ -4,8 +4,17 @@
 \alias{mgcca}
 \title{Generalized canonical correlation with missing individuals}
 \usage{
-mgcca(x, nfac = 2, scale = TRUE, pval = TRUE, scores = FALSE,
-  method = "solve", lambda, mc.cores = 1, ...)
+mgcca(
+  x,
+  nfac = 2,
+  scale = TRUE,
+  pval = TRUE,
+  scores = FALSE,
+  method = "solve",
+  lambda,
+  mc.cores = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{list of matrices. Each matrix should have the ids in the
@@ -45,7 +54,7 @@ scores .. si queremos correlation with each table!
 inversa ...
 "solve" para n>>p (pero lento) (solve function)
 "penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
-"geninv" n<<p generalized inverse (rfunctions geninv)
+"geninv" n<p generalized inverse (rfunctions geninv)
 "ginv" generalized inverse (MASS ginv)
 }
 \examples{

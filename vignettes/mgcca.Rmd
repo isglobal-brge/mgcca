@@ -1,6 +1,6 @@
 ---
 title: "Generalized Canonical Correlation with missing individuals"
-subtitle: "Juan R. Gonzalez and Isaac Subirana"
+subtitle: "Dolors Pelegri-Siso, Isaac Subirana and Juan R. Gonzalez"
 author: |
    Institute for Global Health (ISGlobal), Barcelona, Spain
    Bioinformatics Research Group in Epidemiolgy (BRGE)
@@ -9,6 +9,10 @@ date: "`r Sys.Date()`"
 package: "`r pkg_ver('mgcca')`"
 output: 
   BiocStyle::html_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
+  BiocStyle::pdf_document:
     number_sections: true
     toc: yes
     fig_caption: yes
@@ -25,9 +29,16 @@ knitr::opts_chunk$set(message = FALSE, warning = FALSE,
 
 # Introduction
 
-This manual describes ...
+This manual describes how to peform a Regularized Generalized Canonical Correlation Analysis analysis and then how to perform the same data analysis with missing Canonical Correlation Analysis analysis method implemented in mgcca function in this package.
 
 # Getting started
+
+`mgcca` package depends on `BigDataStatMeth` packages so in orther to install `mgcca` we need to install it.
+
+```{r install_bigdatastatmeth, eval=FALSE}
+devtools::install_github("isglobal-brge/BigDataStatMeth")
+```
+
 The development version of `mgcca` package can be installed from BRGE GitHub repository:
 
 ```{r install_mgcca, eval=FALSE}
@@ -40,8 +51,19 @@ The package depends on other R/Bioc packages that can be installed using standar
 library(mgcca)
 ```
 
-This vignette uses data from different packages ...
+This vignette uses data from different packages such as `RGCCA` from CRAN and `omicade4` from Bioconductor with commands,
 
+```{r install_rgcca, cache=FALSE, eval=FALSE}
+# Install RGCCA
+install.packages("RGCCA")
+
+# Install omicade4
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("omicade4")
+
+```
 
 # Canonical correlation
 
@@ -175,7 +197,8 @@ getSignif(res.mgcca, pval=1e-3, df="genes")
 
 ```{r plot_vars_mgcca_sig}
 var.signif <- getSignif(res.mgcca, pval=1e-3, df="genes")$variable
-plotVars(res.mgcca, var=var.signif, var.col = rep("red", length(var.signif)), var.lab=TRUE, df="genes")
+plotVars(res.mgcca, var=var.signif, var.col = rep("red", length(var.signif)), 
+         var.lab=TRUE, df="genes")
 ```
 
 

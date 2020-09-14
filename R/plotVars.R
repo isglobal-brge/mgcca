@@ -14,7 +14,10 @@ plotVars <- function(x, var=NA, axes=1:2,
                      bg.var.col="gray", # the length either 1 or length(df)
                      nlab=0,
                      df=NA, # either name of data.frame or numeric
-                     layout=NA, ...){
+                     layout=NA,
+                     tit = "",
+                     tit.pos = 0,
+                     tit.cex = 1,...){
 
 
   if (!inherits(x, "mgcca"))
@@ -66,6 +69,7 @@ plotVars <- function(x, var=NA, axes=1:2,
         text(idf[ind, 1], idf[ind, 2], ns[ind])
     }
     legend(x="bottomleft", bty="n", legend=datasets[i], x.intersp=-.5)
+    title(main = tit, line = tit.pos, cex.main = tit.cex )
     vars <- cbind(vars, var %in% ns)
   }
   if (!is.na(vars[1])) {

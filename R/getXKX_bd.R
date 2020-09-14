@@ -8,13 +8,13 @@ getXKX_bd <- function(XX, K, inv, lambda, mc.cores=1){
 getXKX_bd.i <- function(i, XX, K, inv, lambda)
 {
 
-  xk <- BigDataStatMeth::blockmult(t(XX[[i]]),K[[i]])
-  M <- BigDataStatMeth::blockmult(xk,XX[[i]])
+  xk <- BigDataStatMeth::blockmult(t(XX[[i]]),K[[i]], onmemory = T)
+  M <- BigDataStatMeth::blockmult(xk,XX[[i]], onmemory = T)
 
   if (inv==1) # solve
     xkx <- bdInvCholesky(M)
   else if (inv==2) # penalized
-    xkx <- bdInvCholesky(M + bdwproduct(diag(nrow(M)), lambda[i], "wX"))
+    xkx <- bdInvCholesky(M + bdScalarwproduct(diag(nrow(M)), lambda[i], "wX"))
 
   else
     stop("need correct method")
@@ -22,3 +22,4 @@ getXKX_bd.i <- function(i, XX, K, inv, lambda)
   ans <- list(xkx=xkx, xk=xk)
   ans
 }
+

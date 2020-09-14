@@ -1,7 +1,8 @@
 #' Generalized canonical correlation with missing individuals for big data
 #'
-#' @param x list of matrices. Each matrix should have the ids in the
-#' rownames. Missing is not allowed (see details)
+#' @param x string for hdf5 file where data to process will be under MGCCA_IN group .
+#' Results will be stored in the same data file under MGCCA_OUT group. Missing is not allowed  (see details).
+#' @param datanames string array with datasetnames to use with mcgga
 #' @param nfac ...
 #' @param scale ...
 #' @param pval should p-values of correlation between variables and shared canonical variates be computed? Default is TRUE.
@@ -10,8 +11,7 @@
 #' @param method ...
 #' @param lambda ...
 #' @param mc.cores ...
-#' @param outfile filename for output file, if filename is not NULL, results are saved in hdf5 file
-#' @details More dtails in vignette
+#' @details NOT WORKING
 #' @return a list consisting of
 #'   \item{Y}{canonical components for the shared space}
 #'   \item{corsY}{correlation between variables and shared canonical components}
@@ -27,15 +27,15 @@
 #' @importFrom MASS ginv
 #' @importFrom RSpectra eigs eigs_sym
 
-mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
-                  method="solve", lambda, mc.cores=1, outfile=NULL, ...) {
+mgcca_hdf5 <- function(x, datanames, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
+                     method="solve", lambda, mc.cores=1, ...) {
 
   inv.type <- c("solve", "penalized")
   inv.method <- charmatch(method, inv.type, nomatch = 0)
   if (inv.method == 0)
     stop("method should be 'solve' or 'penalized' \n")
 
-  n <- length(x) # number of tables
+  n <- length(datanames) # number of tables
 
   if (inv.method == 2){
     if (missing(lambda))
@@ -45,11 +45,11 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
         stop("lambda must be a vector of length equal to the number of tables \n")
   }
 
-  nas <- sapply(x, function(x) any(is.na(x)))
+  ##.. HDF5 can't sotre <NA> --> We never foud NA in it. # nas <- sapply(x, function(x) any(is.na(x)))
 
-  if (any(nas))
-   stop("Missing values are not allowed. Either use 'impute' package or
-        use tables with complete cases.")
+  ##.. if (any(nas))
+  ##..   stop("Missing values are not allowed. Either use 'impute' package or
+  ##..       use tables with complete cases.")
 
   if (scale)
     #..# x <- lapply(x, scale)

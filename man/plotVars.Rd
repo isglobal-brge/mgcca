@@ -4,8 +4,21 @@
 \alias{plotVars}
 \title{Plot variables correlations with shared canonical components}
 \usage{
-plotVars(x, var = NA, axes = 1:2, var.col = "red", var.lab = FALSE,
-  bg.var.col = "gray", nlab = 0, df = NA, layout = NA, ...)
+plotVars(
+  x,
+  var = NA,
+  axes = 1:2,
+  var.col = "red",
+  var.lab = FALSE,
+  bg.var.col = "gray",
+  nlab = 0,
+  df = NA,
+  layout = NA,
+  tit = "",
+  tit.pos = 0,
+  tit.cex = 1,
+  ...
+)
 }
 \arguments{
 \item{x}{an object of class 'mgcca'}
