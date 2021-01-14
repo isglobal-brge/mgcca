@@ -214,6 +214,8 @@ plot(res.mcia, phenovec=group, sample.lab=FALSE, df.color=c("blue", "darkgreen")
 
 # Generalized Canonical Correlation with missing individuals
 
+The same analyses are performed when having tables with different individuals. The function `mgcca()` does this automatically
+
 
 ```{r sessionInfo}
 sessionInfo()
