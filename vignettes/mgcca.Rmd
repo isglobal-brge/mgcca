@@ -1,5 +1,5 @@
 ---
-title: "Generalized Canonical Correlation with missing individuals"
+title: "Generalized Canonical Correlation"
 subtitle: "Dolors Pelegri-Siso, Isaac Subirana and Juan R. Gonzalez"
 author: |
    Institute for Global Health (ISGlobal), Barcelona, Spain
@@ -18,8 +18,8 @@ output:
     fig_caption: yes
 vignette: >
   %\VignetteIndexEntry{Generalized Canonical Correlation with missing individuals}
-  %\VignetteEngine{knitr::rmarkdown}
   \usepackage[utf8]{inputenc} 
+  %\VignetteEngine{knitr::rmarkdown}
 ---
 
 ```{r setup_knitr, include=FALSE}
@@ -33,10 +33,10 @@ This manual describes how to peform a Regularized Generalized Canonical Correlat
 
 # Getting started
 
-`mgcca` package depends on `BigDataStatMeth` packages so in orther to install `mgcca` we need to install it.
+`mgcca` package depends on `BDSM` packages so in orther to install `mgcca` we need to install it.
 
-```{r install_bigdatastatmeth, eval=FALSE}
-devtools::install_github("isglobal-brge/BigDataStatMeth")
+```{r install_BDSM, eval=FALSE}
+devtools::install_github("isglobal-brge/BDSM")
 ```
 
 The development version of `mgcca` package can be installed from BRGE GitHub repository:
@@ -213,8 +213,6 @@ plot(res.mcia, phenovec=group, sample.lab=FALSE, df.color=c("blue", "darkgreen")
 ```
 
 # Generalized Canonical Correlation with missing individuals
-
-The same analyses are performed when having tables with different individuals. The function `mgcca()` does this automatically
 
 
 ```{r sessionInfo}

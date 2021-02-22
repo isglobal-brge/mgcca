@@ -11,7 +11,7 @@ Depends:
     parallel,
     RSpectra,
     made4,
-    BigDataStatMeth,
+    BDSM,
     R (>= 3.5.0)
 Imports: 
 Description: 

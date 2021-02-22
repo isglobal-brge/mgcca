@@ -53,7 +53,7 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
 
   if (scale)
     #..# x <- lapply(x, scale)
-    x <- lapply(x, BigDataStatMeth::Normalize_Data)
+    x <- lapply(x, BDSM::Normalize_Data, bcenter = FALSE, bscale=TRUE )
 
 
 
@@ -87,7 +87,7 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   Ksum05 <- diag(Ksum)^(-0.5)
   MKsum05 <- mult_wXw(M, Ksum05)
 
-  eig <- BigDataStatMeth::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
+  eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
 
   Yast <- Re(eig$u[,1:nfac])
 
