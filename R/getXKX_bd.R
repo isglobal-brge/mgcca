@@ -8,8 +8,8 @@ getXKX_bd <- function(XX, K, inv, lambda, mc.cores=1){
 getXKX_bd.i <- function(i, XX, K, inv, lambda)
 {
 
-  xk <- BDSM::blockmult(t(XX[[i]]),K[[i]], onmemory = T)
-  M <- BDSM::blockmult(xk,XX[[i]], onmemory = T)
+  xk <- BigDataStatMeth::blockmult(t(XX[[i]]),K[[i]], onmemory = T)
+  M <- BigDataStatMeth::blockmult(xk,XX[[i]], onmemory = T)
 
   if (inv==1) # solve
     xkx <- bdInvCholesky(M)

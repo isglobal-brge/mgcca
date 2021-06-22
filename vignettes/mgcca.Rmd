@@ -33,10 +33,10 @@ This manual describes how to peform a Regularized Generalized Canonical Correlat
 
 # Getting started
 
-`mgcca` package depends on `BDSM` packages so in orther to install `mgcca` we need to install it.
+`mgcca` package depends on `BigDataStatMeth` packages so in orther to install `mgcca` we need to install it.
 
 ```{r install_BDSM, eval=FALSE}
-devtools::install_github("isglobal-brge/BDSM")
+devtools::install_github("isglobal-brge/BigDataStatMeth")
 ```
 
 The development version of `mgcca` package can be installed from BRGE GitHub repository:

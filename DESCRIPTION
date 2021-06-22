@@ -3,15 +3,16 @@ Type: Package
 Title: Generalized Canonical Correlation Analysis having missing individuals
 Version: 0.9.9
 Date: 2018-09-03
-Author: Juan R Gonzalez and Isaac Subirana
-Maintainer: Juan R Gonzalez <juanr.gonzalez@isglobal.org>
+Authors@R: c( person("Dolors", "Pelegri-Siso", "dolors.pelegri@isglobal.org", role = c("aut", "cre")),
+              person("Isaac", "Subirana",  role = c("aut"))
+              person("Juan R.", "Gonzalez", "juanr.gonzalez@isglobal.org", role = c("aut")))
 Depends: 
     BiocStyle,
     MASS,
     parallel,
     RSpectra,
     made4,
-    BDSM,
+    BigDataStatMeth,
     R (>= 3.5.0)
 Imports: 
 Description: 

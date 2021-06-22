@@ -31,7 +31,7 @@ knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
 
 This manual describes how to perform gcca to integrate multiple tables, using the `mgcca` function. The `mgcca` function is designed for small tables, for omics data to work with omics dataset we have implemented the `mgcca_bd` function, which allows to work with large number of variables. We will first show the calculations with `mgcca` and later with `mgcca_bd.`
 
-First, we have to install `mgcca` and `BDSM` packages, for further information about installation, please see vignette for `mgcca` package.
+First, we have to install `mgcca` and `BigDataStatMeth` packages, for further information about installation, please see vignette for `mgcca` package.
 
 ```{r mgcca.install, echo=TRUE, message=FALSE}
 
