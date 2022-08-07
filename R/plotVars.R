@@ -42,25 +42,40 @@ plotVars <- function(x, var=NA, axes=1:2,
   n <- length(df)
   n <- ceiling(n/2)*2
 
-  if (is.matrix(layout))
-    layout(layout) else
-      if (is.na(layout)) {
-        if (length(df) == 1)
-          layout(1) else
-            if (length(df) == 2)
-              layout(t(t(1:2))) else
-                if (length(df) == 3)
-                  layout(t(t(1:3))) else
-                    if (length(df) > 3)
-                      layout(matrix(1:n, n/2, byrow=T))
-      }
+  #   ORIGINAL CODE
+  # if (is.matrix(layout))
+  #   layout(layout) else
+  #     if (is.na(layout)) {
+  #       if (length(df) == 1)
+  #         layout(1) else
+  #           if (length(df) == 2)
+  #             layout(t(t(1:2))) else
+  #               if (length(df) == 3)
+  #                 layout(t(t(1:3))) else
+  #                   if (length(df) > 3)
+  #                     layout(matrix(1:n, n/2, byrow=T))
+  # }
+
+  if (is.matrix(layout)) {
+    layout(layout)
+  } else if (is.na(layout)) {
+    if (length(df) == 1) {
+      layout(1)
+    } else if (length(df) == 2) {
+      layout(t(t(1:2)))
+    } else if (length(df) == 3) {
+      layout(t(t(1:3)))
+    } else if (length(df) > 3) {
+      layout(matrix(1:n, n/2, byrow=T))
+    }
+  }
 
   vars <- var
   par(mar=c(0.1, .1, .1, .1))
   for (i in df){
     idf <- data.frame(df.list[[i]])
     ns <- rownames(idf)
-    plotgenes(idf, axis1=1, axis2=2, nlab=nlab, genelabels=ns,
+    made4::plotgenes(idf, axis1=1, axis2=2, nlab=nlab, genelabels=ns,
               colpoints=bg.var.col, ...)
     ind <- ns %in% var
     if (any(ind)) {

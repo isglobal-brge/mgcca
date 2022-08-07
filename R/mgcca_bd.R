@@ -52,10 +52,7 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
         use tables with complete cases.")
 
   if (scale)
-    #..# x <- lapply(x, scale)
-    x <- lapply(x, BigDataStatMeth::Normalize_Data, bcenter = FALSE, bscale=TRUE )
-
-
+    x <- lapply(x, BigDataStatMeth::bdNormalize_Data, bcenter = TRUE, bscale=TRUE )
 
   if (!is.list(x))
     stop("x must be a list containing the different matrices")
@@ -70,28 +67,29 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
     rn <- sort(Reduce('union', lapply(x, rownames)))
   m <- length(rn)  # get the maximum number of individuals
 
-  XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
+  XK <- mclapply(x, getK_bd, ids=rn, m=m, mc.cores=mc.cores)
   X <- lapply(XK, '[[', 1)
   K <- lapply(XK, '[[', 2)
 
   p <- sapply(X, ncol) # number of variables per table
-  numvars <- min(p) # minimum number of variables
+  ## !!! needed ¿? !!! ## numvars <- min(p) # minimum number of variables
 
   # Get the required XKX product and inverse that is computed multiple times
   XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
-  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
+  Mi <- mclapply(1:n, mgcca:::solution_bd, XX=X, K=K, XKX=XKX)
+  # Mi <- mclapply(1:n, mgcca::solution, XX=X, K=K, XKX=XKX)
   M <- Reduce('+', Mi)
   Ksum <- Reduce('+', K)
 
   Ksum05 <- diag(Ksum)^(-0.5)
-  MKsum05 <- mult_wXw(M, Ksum05)
+  MKsum05 <- mult_wXw_bd(M, Ksum05)
 
   eig <- BigDataStatMeth::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
 
   Yast <- Re(eig$u[,1:nfac])
 
-  Y <- sqrt(n)* bdwproduct(Yast, Ksum05, "wX")
+  Y <- sqrt(n)* BigDataStatMeth::bdwproduct(Yast, Ksum05, "wX")
   colnames(Y) <- paste0("comp", 1:ncol(Y))
   rownames(Y) <- rn
 

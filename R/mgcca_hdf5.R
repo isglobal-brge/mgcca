@@ -2,6 +2,8 @@
 #'
 #' @param x string for hdf5 file where data to process will be under MGCCA_IN group .
 #' Results will be stored in the same data file under MGCCA_OUT group. Missing is not allowed  (see details).
+#' @param filename string for hdf5 file where data to process will be under MGCCA_IN group .
+#' Results will be stored in the same data file under MGCCA_OUT group. Missing is not allowed  (see details).
 #' @param datanames string array with datasetnames to use with mcgga
 #' @param nfac ...
 #' @param scale ...
@@ -27,22 +29,27 @@
 #' @importFrom MASS ginv
 #' @importFrom RSpectra eigs eigs_sym
 
-mgcca_hdf5 <- function(x, datanames, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
-                     method="solve", lambda, mc.cores=1, ...) {
+# mgcca_hdf5 <- function(x, datanames, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
+#                      method="solve", lambda, mc.cores=1, ...) {
+
+mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
+                       method="solve", lambda, mc.cores=1, ...) {
 
   inv.type <- c("solve", "penalized")
   inv.method <- charmatch(method, inv.type, nomatch = 0)
   if (inv.method == 0)
     stop("method should be 'solve' or 'penalized' \n")
 
-  n <- length(datanames) # number of tables
+  n <- length(datasets) # number of tables
 
-  if (inv.method == 2){
-    if (missing(lambda))
-      stop("penalized method requires lambda parameter \n")
-    else
-      if(length(lambda)!=n)
-        stop("lambda must be a vector of length equal to the number of tables \n")
+  if (inv.method == 2) {
+      if (missing(lambda)) {
+          stop("penalized method requires lambda parameter \n")
+      } else {
+          if(length(lambda)!=n) {
+              stop("lambda must be a vector of length equal to the number of tables \n")
+          }
+      }
   }
 
   ##.. HDF5 can't sotre <NA> --> We never foud NA in it. # nas <- sapply(x, function(x) any(is.na(x)))
@@ -51,31 +58,77 @@ mgcca_hdf5 <- function(x, datanames, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE
   ##..   stop("Missing values are not allowed. Either use 'impute' package or
   ##..       use tables with complete cases.")
 
-  if (scale)
-    #..# x <- lapply(x, scale)
-    x <- lapply(x, BDSM::Normalize_Data, bcenter=FALSE, bscale=TRUE)
+  if (scale) {
+      #..# x <- lapply(x, scale)
+      x <- lapply(datasets, bdNormalize_hdf5, filename = filename, group = group, bcenter=TRUE, bscale=TRUE, force = TRUE )
+  }
+
+  currentdatasets <- sapply(datasets, function(d, g) {
+      if(scale) {
+          daasetname <- paste("NORMALIZED", g, d, sep = "/")
+      } else {
+          daasetname <- paste( g, d, sep = "/")
+      }
+  }, g = group)
+
+  ## FINS AQUÍ OK !!! NORMALITZA LES DADES OK !!!
+
+  #..  No te sentit ..# if (!is.list(x))
+  #..  No te sentit ..#   stop("x must be a list containing the different matrices")
+
+  if(length(currentdatasets)<=1)
+    stop("we need more than one dataset to perform mgcca analysis")
+
+  #..  No te sentit ..# if (any(unlist(lapply(x, function(x) !is.matrix(x)))))
+  #..  No te sentit ..#   x <- lapply(x, as.matrix)
 
 
+  #..# ns <- sapply(x, nrow)
+  ns <- sapply( currentdatasets, function(dataset, file) { return( bdgetDim_hdf5(file, dataset)[2] ) }, file = filename )
 
-  if (!is.list(x))
-    stop("x must be a list containing the different matrices")
 
-  if (any(unlist(lapply(x, function(x) !is.matrix(x)))))
-    x <- lapply(x, as.matrix)
+  if(max(ns)==min(ns)) { # check whether there are missing individuals
+      rn <- Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group))
+  } else {
+      rn <- sort(Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group)))
+  }
 
-  ns <- sapply(x, nrow)
-  if(max(ns)==min(ns)) # check whether there are missing individuals
-    rn <- Reduce('union', lapply(x, rownames))
-  else
-    rn <- sort(Reduce('union', lapply(x, rownames)))
   m <- length(rn)  # get the maximum number of individuals
 
-  XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
-  X <- lapply(XK, '[[', 1)
-  K <- lapply(XK, '[[', 2)
+  # Crear carpeta tmp/X
+  bdCreateGroup_hdf5( filename, "/tmp/mgcca/X" )
+  # Crear carpeta tmp/K
+  bdCreateGroup_hdf5( filename, "tmp/mgcca/K" )
 
-  p <- sapply(X, ncol) # number of variables per table
+  ####
+  ####
+  ####
+  #### AQYÍ !!!! HE DE CALCULAR EL GETK PER HDF5 !!!
+  ####  COM REDIMONIS HO HE DE FER PER ORDENAR !!!
+  ####  HO CARREGO TOT A MEMÒRIA I HO ESCRIC AMB L'ORDRE QUE TOCA???
+  ####  ES UNA BOGERIA !!!
+  ####  O ES LA ÚNICA SOLUCIÓ !!! ???
+  ####
+  ####
+  ####
+
+  mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
+  X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
+  K <- bdgetDatasetsList_hdf5(filename = filename, group = "K")
+  p <-  sapply( paste0( "X/",X), function(el, filename){
+        res <- BigDataStatMeth::bdgetDim_hdf5(filename, el)
+        return(res[2]) # number of variables per table
+    }, filename = filename )
+
   numvars <- min(p) # minimum number of variables
+
+  getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
+
+  browser()
+
+  ####
+  ####    ARA HE ARRIBAT FINS AQUÍ ....
+  ####
 
   # Get the required XKX product and inverse that is computed multiple times
   XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)

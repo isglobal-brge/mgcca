@@ -1,13 +1,10 @@
 solution_bd <- function(i, XX, K, XKX) {
-  xkx <- XKX[[i]][[1]]
-  xk <- XKX[[i]][[2]]
-  # ans <- K[[i]]%*%XX[[i]]%*%xkx%*%xk
+  # XKX[[i]][[1]] : xkx
+  # XKX[[i]][[2]] : xk
 
-  res1 <- bdwXw( XX[[i]], diag(K[[i]]), 'wX')
-  ans <- blockmult(blockmult(res1,xkx),xk, onmemory = T)
-  #..# ans <- blockmult(blockmult(bdwXw( XX[[i]], diag(K[[i]]), 'wX'),xkx),xk)
-  #..# ans <- mult_wX(XX[[i]], diag(K[[i]]))%*%xkx%*%xk
+  res1 <- bdwproduct(XX[[i]], diag(K[[i]]),"wX")
+  ans <- bdblockmult(bdblockmult(res1,XKX[[i]][[1]], onmemory=T),XKX[[i]][[2]], onmemory = T)
 
-  ans
+  return(ans)
 }
 

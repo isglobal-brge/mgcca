@@ -1,16 +1,18 @@
 getXKX_bd <- function(XX, K, inv, lambda, mc.cores=1){
-  ans <- parallel::mclapply(1:length(XX), getXKX_bd.i, XX=XX, K=K, inv=inv,
-                  lambda=lambda, mc.cores = mc.cores)
+  # ans <- parallel::mclapply(1:length(XX), getXKX_bd.i, XX=XX, K=K, inv=inv,
+  #                 lambda=lambda, nthreads=mc.cores)
+  ans <- lapply(1:length(XX), getXKX_bd.i, XX=XX, K=K, inv=inv,
+                            lambda=lambda, nthreads=mc.cores)
   ans
 
 }
 
-getXKX_bd.i <- function(i, XX, K, inv, lambda)
+getXKX_bd.i <- function(i, XX, K, inv, lambda, nthreads)
 {
 
-  xk <- BigDataStatMeth::blockmult(t(XX[[i]]),K[[i]], onmemory = T)
-  M <- BigDataStatMeth::blockmult(xk,XX[[i]], onmemory = T)
-
+  xk <- BigDataStatMeth::bdblockmult(t(XX[[i]]),K[[i]], onmemory = T, threads = nthreads)
+  M <- BigDataStatMeth::bdblockmult(xk,XX[[i]], onmemory = T, threads = nthreads)
+browser()
   if (inv==1) # solve
     xkx <- bdInvCholesky(M)
   else if (inv==2) # penalized

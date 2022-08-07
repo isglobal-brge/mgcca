@@ -6,7 +6,9 @@
 \usage{
 mgcca_hdf5(
   x,
-  datanames,
+  filename,
+  group,
+  datasets,
   nfac = 2,
   scale = TRUE,
   pval = TRUE,
@@ -21,7 +23,8 @@ mgcca_hdf5(
 \item{x}{string for hdf5 file where data to process will be under MGCCA_IN group .
 Results will be stored in the same data file under MGCCA_OUT group. Missing is not allowed  (see details).}
 
-\item{datanames}{string array with datasetnames to use with mcgga}
+\item{filename}{string for hdf5 file where data to process will be under MGCCA_IN group .
+Results will be stored in the same data file under MGCCA_OUT group. Missing is not allowed  (see details).}
 
 \item{nfac}{...}
 
@@ -37,6 +40,8 @@ Default is FALSE. See details}
 \item{lambda}{...}
 
 \item{mc.cores}{...}
+
+\item{datanames}{string array with datasetnames to use with mcgga}
 }
 \value{
 a list consisting of
