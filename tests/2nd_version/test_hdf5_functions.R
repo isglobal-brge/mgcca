@@ -73,10 +73,15 @@ load("/Users/mailos/Library/Mobile Documents/com~apple~CloudDocs/PROJECTES/Treba
 # devtools::reload(pkgload::inst("BigDataStatMeth"))
 # devtools::reload(pkgload::inst("mgcca"))
 
+tables_list <- getTables(multiassayexperiment.imputed)
 # Modifiquem els noms dels ids i els passem a només 12 caràcters que en realitat es el id de la mostra, no els
-for ( i in 1:length(multiassayexperiment.imputed)) {
-  colnames(multiassayexperiment.imputed[[i]]) <- substr(colnames(multiassayexperiment.imputed[[i]]), 1, 12)
+for ( i in 1:length(tables_list)) {
+  rownames(tables_list[[i]]) <- substr(rownames(tables_list[[i]]), 1, 12)
 }
+
+doubleExp <- list("ACC_RNASeq2GeneNorm-20160128"  = t(tables_list[[1]]), "ACC_Methylation-20160128" = t(tables_list[[2]]))
+multiassayexperiment.imputed <- MultiAssayExperiment(experiments=doubleExp, colData = colData(multiassayexperiment.imputed))
+
 
 # REDUIM EL TAMANY DE LES DADES PER PODER FER PROVES COM CAL....
 tables_list.subset <- mgcca::getTables_hdf5(multiassayexperiment.imputed[1:100, ,], "tmp/gettables.hdf5", overwriteFile = T, overwriteDataset = T)
