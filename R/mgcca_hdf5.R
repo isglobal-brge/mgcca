@@ -95,10 +95,10 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   m <- length(rn)  # get the maximum number of individuals
 
-  # Crear carpeta tmp/X
-  bdCreateGroup_hdf5( filename, "/tmp/mgcca/X" )
-  # Crear carpeta tmp/K
-  bdCreateGroup_hdf5( filename, "tmp/mgcca/K" )
+  # # Crear carpeta tmp/X
+  # bdCreateGroup_hdf5( filename, "/tmp/X" )
+  # # Crear carpeta tmp/K
+  # bdCreateGroup_hdf5( filename, "/tmp/K" )
 
   ####
   ####
