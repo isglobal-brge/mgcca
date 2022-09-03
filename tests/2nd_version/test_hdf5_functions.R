@@ -83,16 +83,26 @@ doubleExp <- list("ACC_RNASeq2GeneNorm-20160128"  = t(tables_list[[1]]), "ACC_Me
 multiassayexperiment.imputed <- MultiAssayExperiment(experiments=doubleExp, colData = colData(multiassayexperiment.imputed))
 
 
+
 # REDUIM EL TAMANY DE LES DADES PER PODER FER PROVES COM CAL....
 tables_list.subset <- mgcca::getTables_hdf5(multiassayexperiment.imputed[1:100, ,], "tmp/gettables.hdf5", overwriteFile = T, overwriteDataset = T)
 # Totes le dades....
 #..# tables_list.subset <- mgcca::getTables_hdf5(multiassayexperiment.imputed, "tmp/gettables.hdf5", overwriteFile = T, overwriteDataset = T)
+
+devtools::reload(pkgload::inst("BigDataStatMeth"))
+devtools::reload(pkgload::inst("mgcca"))
 
 hh <- mgcca_hdf5(x = "tmp/gettables.hdf5",
                  filename = "tmp/gettables.hdf5",
                  group = "MGCCA_IN",
                  datasets = c("ACC_Methylation-20160128", "ACC_RNASeq2GeneNorm-20160128"),
                  method="penalized", lambda=c(0.75,1))
+
+hh <- mgcca_hdf5(x = "tmp/gettables.hdf5",
+                 filename = "tmp/gettables.hdf5",
+                 group = "MGCCA_IN",
+                 datasets = c("ACC_Methylation-20160128", "ACC_RNASeq2GeneNorm-20160128"),
+                 method="penalized", lambda=c(1, 0.75))
 
 
 
