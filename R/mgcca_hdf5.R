@@ -60,7 +60,7 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   if (scale) {
       #..# x <- lapply(x, scale)
-      x <- lapply(datasets, bdNormalize_hdf5, filename = filename, group = group, bcenter=TRUE, bscale=TRUE, force = TRUE )
+      x <- lapply(datasets, bdNormalize_hdf5, filename = filename, group = group, bcenter=TRUE, bscale=TRUE, force = TRUE, byrows = TRUE )
   }
 
   currentdatasets <- sapply(datasets, function(d, g) {
@@ -71,6 +71,12 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
       }
   }, g = group)
 
+  distancia <- regexpr("\\/[^\\/]*$", currentdatasets[1])[[1]]
+  ngroup <-  substr(currentdatasets[1],1,distancia-1)
+  # print("Examinar currentdatasets per extreure posteriorment el grup")
+  # print(distancia)
+  # print(substr(currentdatasets[1],1,distancia-1))
+  # browser()
   ## FINS AQUÍ OK !!! NORMALITZA LES DADES OK !!!
 
   #..  No te sentit ..# if (!is.list(x))
@@ -112,7 +118,8 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
   ####
   ####
 
-  mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
+  ##..## mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
+  mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group, ngroup = ngroup )
   X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
   K <- bdgetDatasetsList_hdf5(filename = filename, group = "K")
   p <-  sapply( paste0( "X/",X), function(el, filename){
@@ -127,11 +134,16 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
   browser()
 
   ####
-  ####    ARA HE ARRIBAT FINS AQUÍ ....
+  ####    ARA HE ARRIBAT FINS AQUÍ TOT FUNCIONANT OK !!!
+  ####      --> Seguir amb :
+  ####              Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
+  ####
+  ####  S'ha de tenir en compte que el càlcul de Choleskyt està fet per a la triangular inferior!!!,
+  ####  no tota la matriu!!!
   ####
 
-  # Get the required XKX product and inverse that is computed multiple times
-  XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
+  # # Get the required XKX product and inverse that is computed multiple times
+  # XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
   Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
   M <- Reduce('+', Mi)
