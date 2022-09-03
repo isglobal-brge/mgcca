@@ -8,22 +8,30 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
   ######  EL PRODUCTE SCALAR + LA INVERSIÓ CHOLEVSKY !!! (ELSE)
   ######
 
-  bdapply_Function_hdf5(filename = filename,
-                        group = "X",datasets = XX,
-                        b_group = "K",b_datasets = K,
-                        outgroup = "XK",func = "blockmult",
-                        force = T)
+  # bdapply_Function_hdf5(filename = filename,
+  #                       group = "X",datasets = XX,
+  #                       b_group = "K",b_datasets = K,
+  #                       outgroup = "XK",func = "blockmult",
+  #                       transp_bdataset = TRUE,
+  #                       force = T)
+  #
+  # XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
+  # bdapply_Function_hdf5(filename = filename,
+  #                       group = "XK",datasets = XK,
+  #                       b_group = "X",b_datasets = XX,
+  #                       outgroup = "M",func = "blockmult",
+  #                       transp_bdataset = TRUE,
+  #                       force = T)
 
-  XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
-  bdapply_Function_hdf5(filename = filename,
-                        group = "XK",datasets = XK,
-                        b_group = "X",b_datasets = XX,
-                        outgroup = "M",func = "blockmult",
-                        force = T)
 
-  M <- bdgetDatasetsList_hdf5(filename = filename, group = "M")
+    bdapply_Function_hdf5(filename = filename,
+                          group = "X",datasets = XX,
+                          outgroup = "M",func = "tCrossProd",
+                          force = T)
 
-  if (inv==1) { # solve
+    M <- bdgetDatasetsList_hdf5(filename = filename, group = "M")
+
+    if (inv==1) { # solve
 
     bdapply_Function_hdf5(filename = filename,
                           group = "M",datasets = M,
@@ -42,7 +50,10 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
       # Fer el pas inicial i emmagatzemar al grup tmp
       #
       sapply(1:length(tmp), function(i) {
-                  tmpResult <- bdScalarwproduct( bdgetDiagonal_hdf5(filename, "M", tmp[i]) , lambda[i], "wX")
+                  #..# tmpResult <- bdScalarwproduct( bdgetDiagonal_hdf5(filename, "M", tmp[i]) , lambda[i], "wX")
+                dims <- BigDataStatMeth::bdgetDim_hdf5(filename, paste0("M/",tmp[i]))
+                tmpResult <- bdScalarwproduct( diag(dims[1]) , lambda[i], "wX")
+          browser()
                   # aa <- tmp[i] + bdScalarwproduct( bdgetDiagonal_hdf5(filename, "M", tmp[i]) , lambda[i], "wX")
                   bdAdd_hdf5_matrix( tmpResult, filename, "tmp", paste0(tmp[i],"scalarx"), force = T)
 
@@ -70,16 +81,16 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
       print("Just DESPRES del aplay de cholesky")
       # <==
 
-  } else {
+    } else {
     stop("need correct method")
-  }
+    }
 
-  # if (inv==1) # solve
-  #   xkx <- bdInvCholesky(M)
-  # else if (inv==2) # penalized
-  #   xkx <- bdInvCholesky(M + bdScalarwproduct(diag(nrow(M)), lambda[i], "wX"))
-  # else
-  #   stop("need correct method")
+    # if (inv==1) # solve
+    #   xkx <- bdInvCholesky(M)
+    # else if (inv==2) # penalized
+    #   xkx <- bdInvCholesky(M + bdScalarwproduct(diag(nrow(M)), lambda[i], "wX"))
+    # else
+    #   stop("need correct method")
 
 }
 
