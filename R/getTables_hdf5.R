@@ -34,7 +34,7 @@ getTables_hdf5 <- function(multiassayexperiment, filename, overwriteFile = FALSE
   for (assay in 1:length(experiments(multiassayexperiment))) {
     if(assay == 1){
       if( file.exists(filename) && overwriteFile == F) {
-        bdAdd_hdf5_matrix(as.matrix(assays(multiassayexperiment)[[assay]]), filename, "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteDataset );
+        bdAdd_hdf5_matrix(as.matrix(assays(multiassayexperiment)[[assay]]), filename, "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteDataset )
         tables.list[[assay]] <- names(assays(multiassayexperiment)[assay])
       } else {
         bdCreate_hdf5_matrix_file(filename, as.matrix(assays(multiassayexperiment)[[assay]]), "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteFile )
@@ -43,7 +43,7 @@ getTables_hdf5 <- function(multiassayexperiment, filename, overwriteFile = FALSE
       ##..## rownames(assays(multiassayexperiment)[[1]])
       ##..## colnames(assays(multiassayexperiment)[[1]])
     } else {
-      bdAdd_hdf5_matrix(as.matrix(assays(multiassayexperiment)[[assay]]), filename, "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteDataset );
+      bdAdd_hdf5_matrix(as.matrix(assays(multiassayexperiment)[[assay]]), filename, "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteDataset )
       tables.list[[assay]] <- names(assays(multiassayexperiment)[assay])}
   }
 
