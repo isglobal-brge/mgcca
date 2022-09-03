@@ -12,7 +12,6 @@ getXKX_bd.i <- function(i, XX, K, inv, lambda, nthreads)
 
   xk <- BigDataStatMeth::bdblockmult(t(XX[[i]]),K[[i]], onmemory = T, threads = nthreads)
   M <- BigDataStatMeth::bdblockmult(xk,XX[[i]], onmemory = T, threads = nthreads)
-browser()
   if (inv==1) # solve
     xkx <- bdInvCholesky(M)
   else if (inv==2) # penalized
