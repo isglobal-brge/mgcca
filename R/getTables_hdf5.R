@@ -16,20 +16,6 @@ getTables_hdf5 <- function(multiassayexperiment, filename, overwriteFile = FALSE
   if (!class(multiassayexperiment) == "MultiAssayExperiment")
     stop("Input must be a 'MultiAssayExperiment' object \n")
 
-  ## Aquí s'haurà de posar una funció per a convertir de muytiassayExperiment
-  ## cap a taules hdf5 --> Potser només cal utilitzar les funcions de
-  ## crear fitxer i crear matrius ..... amb això potser n'hi hauria prou.....
-  ## però potser caldria repassar les opcions de crear matrius amb dimnames i les opcions
-  ## de restaurar els noms dels dimnames.
-  ##
-
-  #..# --  CODI ORIGINAL
-  #..# tables.list = list()
-  #..# for (assay in 1:length(multiassayexperiment)) {
-  #..#   matrix.add <- as.matrix(assays(multiassayexperiment)[[assay]])
-  #..#   tables.list[[names(assays(multiassayexperiment)[assay])]] <- t(matrix.add)
-  #..# }
-  #..# --  FI CODI ORIGINAL
   tables.list <-  list()
   for (assay in 1:length(experiments(multiassayexperiment))) {
     if(assay == 1){
@@ -46,8 +32,6 @@ getTables_hdf5 <- function(multiassayexperiment, filename, overwriteFile = FALSE
       bdAdd_hdf5_matrix(as.matrix(assays(multiassayexperiment)[[assay]]), filename, "MGCCA_IN", names(assays(multiassayexperiment)[assay]), force = overwriteDataset )
       tables.list[[assay]] <- names(assays(multiassayexperiment)[assay])}
   }
-
-  #..# class(tables.list) <- "ListMAE"
 
   # Aquí potser estaria bé retornar els noms de les taules creades...
   # es a dir els noms dels datasets que s'han creat ??
