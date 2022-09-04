@@ -131,8 +131,6 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
-  browser()
-
   ####
   ####    ARA HE ARRIBAT FINS AQUÍ TOT FUNCIONANT OK !!!
   ####      --> Seguir amb :
@@ -144,8 +142,13 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   # # Get the required XKX product and inverse that is computed multiple times
   # XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
+  #..# Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
 
-  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
+  XKX <- bdgetDatasetsList_hdf5(filename = filename, group = "XKX")
+  solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
+  browser()
+
+
   M <- Reduce('+', Mi)
   Ksum <- Reduce('+', K)
 
