@@ -78,7 +78,6 @@ mgcca_bd <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
   XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
   Mi <- mclapply(1:n, mgcca:::solution_bd, XX=X, K=K, XKX=XKX)
-  # Mi <- mclapply(1:n, mgcca::solution, XX=X, K=K, XKX=XKX)
   M <- Reduce('+', Mi)
   Ksum <- Reduce('+', K)
 

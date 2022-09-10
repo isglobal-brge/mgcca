@@ -101,23 +101,6 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   m <- length(rn)  # get the maximum number of individuals
 
-  # # Crear carpeta tmp/X
-  # bdCreateGroup_hdf5( filename, "/tmp/X" )
-  # # Crear carpeta tmp/K
-  # bdCreateGroup_hdf5( filename, "/tmp/K" )
-
-  ####
-  ####
-  ####
-  #### AQYÍ !!!! HE DE CALCULAR EL GETK PER HDF5 !!!
-  ####  COM REDIMONIS HO HE DE FER PER ORDENAR !!!
-  ####  HO CARREGO TOT A MEMÒRIA I HO ESCRIC AMB L'ORDRE QUE TOCA???
-  ####  ES UNA BOGERIA !!!
-  ####  O ES LA ÚNICA SOLUCIÓ !!! ???
-  ####
-  ####
-  ####
-
   ##..## mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
   mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group, ngroup = ngroup )
   X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
@@ -131,31 +114,39 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
 
-  ####
-  ####    ARA HE ARRIBAT FINS AQUÍ TOT FUNCIONANT OK !!!
-  ####      --> Seguir amb :
-  ####              Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
-  ####
-  ####  S'ha de tenir en compte que el càlcul de Choleskyt està fet per a la triangular inferior!!!,
-  ####  no tota la matriu!!!
-  ####
-
   # # Get the required XKX product and inverse that is computed multiple times
   # XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
   #..# Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
 
   XKX <- bdgetDatasetsList_hdf5(filename = filename, group = "XKX")
-  solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
+  Mi <- solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
+
+  #..# M <- Reduce('+', Mi)
+  BigDataStatMeth::bdReduce_matrix_hdf5(filename = filename, group = Mi, reducefunction = "+", outgroup = "FinalRes", outdataset = "M")
+
+  #..# Ksum <- Reduce('+', K)
+  BigDataStatMeth::bdReduce_matrix_hdf5(filename = filename, group = "K", reducefunction = "+", outgroup = "FinalRes", outdataset = "Ksum")
+
+  ## OPTIMITZACIÓ DE CODI REPECTE ALTRES VERSIONS :
+  ##    Eliminada la funció de càlcul de l'arrel quadrada de la diagonal
+  ##    Modificada la función wXw
+  ##            --> Enlloc dels passos anteriors : multipliquem la diagonal (directament) %*% matriuX
+  ##            --> Estalviant el càlcul de l'arrel quadrada i el doble producte
+  ##
+  ##
+  ##    Codi modificaat :
+  #..# Ksum05 <- diag(Ksum)^(-0.5)
+  #..# MKsum05 <- mult_wXw(M, Ksum05)
+
+  Ksum <- BigDataStatMeth::bdgetDiagonal_hdf5(filename, "FinalRes", "Ksum")
+  bdAdd_hdf5_matrix(as.matrix((Ksum^-0.5)^2), filename, "FinalRes", "Ksum05")
+  bdWeightedProduct_hdf5(filename, group = "FinalRes", dataset = "M",
+                         vectorgroup = "FinalRes", vectordataset = "Ksum05",
+                         outdataset = "MKsum05", byrows = T,force = T)
+
+  #..# eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
+  BigDataStatMeth::bdSVD_hdf5( filename,group = "FinalRes", dataset = "MKsum05",bcenter = F,bscale = F)
   browser()
-
-
-  M <- Reduce('+', Mi)
-  Ksum <- Reduce('+', K)
-
-  Ksum05 <- diag(Ksum)^(-0.5)
-  MKsum05 <- mult_wXw(M, Ksum05)
-
-  eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
 
   Yast <- Re(eig$u[,1:nfac])
 
