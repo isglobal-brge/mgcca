@@ -11,7 +11,7 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
         bdapply_Function_hdf5(filename = filename,
                               group = "M",datasets = M,
                               outgroup = "XKX",func = "invChol",
-                              force = T)
+                              force = T, fullMatrix = T)
 
     } else if (inv==2) { # penalized
         tmp <- bdgetDatasetsList_hdf5(filename = filename, group = "M")
@@ -34,7 +34,7 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
         bdapply_Function_hdf5(filename = filename,
                             group = "tmp",datasets = tmp,
                             outgroup = "XKX",func = "invChol",
-                            force = T)
+                            force = T, fullMatrix = T)
 
     } else {
     stop("need correct method")
