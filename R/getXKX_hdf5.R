@@ -1,4 +1,13 @@
-getXKX_hdf5 <- function(filename, XX, K, inv, lambda, mc.cores=1){
+getXKX_hdf5 <- function(filename, XX, K, inv, lambda, scores, mc.cores=1) {
+
+    # Get XK and store (to be used later if scores == true)
+    if( scores ) {
+        bdapply_Function_hdf5(filename = filename,
+                              group = "X",datasets = XX,
+                              b_group = "K", b_datasets = K,
+                              outgroup = "XK",func = "blockmult",
+                              force = T)
+    }
 
     bdapply_Function_hdf5(filename = filename,
                           group = "X",datasets = XX,

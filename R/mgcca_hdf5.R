@@ -112,7 +112,7 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   numvars <- min(p) # minimum number of variables
 
-  getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
+  getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, scores, mc.cores=mc.cores)
 
   # # Get the required XKX product and inverse that is computed multiple times
   # XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
@@ -146,18 +146,44 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
 
   #..# eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
   BigDataStatMeth::bdSVD_hdf5( filename,group = "FinalRes", dataset = "MKsum05",bcenter = F,bscale = F)
-  browser()
 
-  Yast <- Re(eig$u[,1:nfac])
+  #..# Yast <- Re(eig$u[,1:nfac])
+  Yast <- Re( rhdf5::h5read(filename,"SVD/MKsum05/u",))[,1:nfac]
 
-  Y <- sqrt(n)* bdwproduct(Yast, Ksum05, "wX")
+  ##
+  ## REPASSAR TOTA AQUESTA PART !!!! NO ACABEN DE QUADRAR ELS RESULTATS
+  ## DE Y !!!!
+  ##
+
+  Y <- sqrt(n)* bdwproduct(Yast, Ksum^-0.5, "wX")
   colnames(Y) <- paste0("comp", 1:ncol(Y))
   rownames(Y) <- rn
 
+  sapply(datasets, function(dataset) {
+      bdAdd_hdf5_matrix(object = Y, filename = filename, group = "FinalRes/Y",
+                        dataset = paste0(dataset,".Y"), force = T)
+  } )
+
+  ##
+  ##
+  ## REPASSAR TOT L'ANTERIOR !!!! PERQUÈ A PARTIR D'AQUÍ ELS RESULTATS NO SON CORRECTES !!!
+  ##
+  ##
+
+
   if (scores) {
-    A <- mclapply(1:n, productXKY_bd, Y=Y, XKX=XKX, mc.cores=mc.cores)
-    As <- mclapply(1:n, getWeights_bd, A=A, XX=X, K=K, mc.cores=mc.cores)
-    scores <- mclapply(1:n, getScores_bd, dat=X, As=As, mc.cores=mc.cores)
+      Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
+      XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
+
+      #..# A <- mclapply(1:n, productXKY_bd, Y=Y, XKX=XKX, mc.cores=mc.cores)
+      A <- productXKY_hdf5(filename=filename, Y=Yd, XK=XK, XKX=XKX, mc.cores)
+
+      #..# As <- mclapply(1:n, getWeights_bd, A=A, XX=X, K=K, mc.cores=mc.cores)
+      As <- getWeights_hdf5(filename=filename, A=A, XX=X, K=K, mc.cores)
+
+      #..# scores <- mclapply(1:n, getScores_bd, dat=X, As=As, mc.cores=mc.cores)
+      scores <- lapply(1:n, getScores_hdf5, dat = X, As = As, mc.cores)
+
     for (i in 1:n){
       rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
       colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))

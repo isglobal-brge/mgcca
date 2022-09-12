@@ -102,7 +102,7 @@ hh <- mgcca_hdf5(x = "tmp/gettables.hdf5",
                  filename = "tmp/gettables.hdf5",
                  group = "MGCCA_IN",
                  datasets = c("ACC_Methylation-20160128", "ACC_RNASeq2GeneNorm-20160128"),
-                 method="penalized", lambda=c(1, 0.75))
+                 method="penalized", lambda=c(1, 0.75), scores = T)
 
 
 
