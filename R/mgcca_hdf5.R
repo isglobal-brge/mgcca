@@ -122,38 +122,20 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
   Mi <- solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
 
   #..# M <- Reduce('+', Mi)
-  BigDataStatMeth::bdReduce_matrix_hdf5(filename = filename, group = Mi, reducefunction = "+", outgroup = "FinalRes", outdataset = "M")
+  bdReduce_matrix_hdf5(filename = filename, group = Mi, reducefunction = "+", outgroup = "FinalRes", outdataset = "M")
 
   #..# Ksum <- Reduce('+', K)
-  BigDataStatMeth::bdReduce_matrix_hdf5(filename = filename, group = "K", reducefunction = "+", outgroup = "FinalRes", outdataset = "Ksum")
+  bdReduce_matrix_hdf5(filename = filename, group = "K", reducefunction = "+", outgroup = "FinalRes", outdataset = "Ksum")
 
-  ## OPTIMITZACIÓ DE CODI REPECTE ALTRES VERSIONS :
-  ##    Eliminada la funció de càlcul de l'arrel quadrada de la diagonal
-  ##    Modificada la función wXw
-  ##            --> Enlloc dels passos anteriors : multipliquem la diagonal (directament) %*% matriuX
-  ##            --> Estalviant el càlcul de l'arrel quadrada i el doble producte
-  ##
-  ##
-  ##    Codi modificaat :
-  #..# Ksum05 <- diag(Ksum)^(-0.5)
-  #..# MKsum05 <- mult_wXw(M, Ksum05)
-
-  Ksum <- BigDataStatMeth::bdgetDiagonal_hdf5(filename, "FinalRes", "Ksum")
-  bdAdd_hdf5_matrix(as.matrix((Ksum^-0.5)^2), filename, "FinalRes", "Ksum05")
-  bdWeightedProduct_hdf5(filename, group = "FinalRes", dataset = "M",
-                         vectorgroup = "FinalRes", vectordataset = "Ksum05",
-                         outdataset = "MKsum05", byrows = T,force = T)
+  Ksum <- bdgetDiagonal_hdf5(filename, "FinalRes", "Ksum")
+  bdAdd_hdf5_matrix(as.matrix(Ksum^-0.5), filename, "FinalRes", "Ksum05")
+  mult_wXw_hdf5(filename, "FinalRes","M", "FinalRes", "Ksum05")
 
   #..# eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
   BigDataStatMeth::bdSVD_hdf5( filename,group = "FinalRes", dataset = "MKsum05",bcenter = F,bscale = F)
 
   #..# Yast <- Re(eig$u[,1:nfac])
   Yast <- Re( rhdf5::h5read(filename,"SVD/MKsum05/u",))[,1:nfac]
-
-  ##
-  ## REPASSAR TOTA AQUESTA PART !!!! NO ACABEN DE QUADRAR ELS RESULTATS
-  ## DE Y !!!!
-  ##
 
   Y <- sqrt(n)* bdwproduct(Yast, Ksum^-0.5, "wX")
   colnames(Y) <- paste0("comp", 1:ncol(Y))
@@ -164,26 +146,17 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
                         dataset = paste0(dataset,".Y"), force = T)
   } )
 
-  ##
-  ##
-  ## REPASSAR TOT L'ANTERIOR !!!! PERQUÈ A PARTIR D'AQUÍ ELS RESULTATS NO SON CORRECTES !!!
-  ##
-  ##
-
-
   if (scores) {
-      Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
-      XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
 
+      Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
+      KX <- bdgetDatasetsList_hdf5(filename = filename, group = "KX")
+      XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
       #..# A <- mclapply(1:n, productXKY_bd, Y=Y, XKX=XKX, mc.cores=mc.cores)
       A <- productXKY_hdf5(filename=filename, Y=Yd, XK=XK, XKX=XKX, mc.cores)
-
       #..# As <- mclapply(1:n, getWeights_bd, A=A, XX=X, K=K, mc.cores=mc.cores)
-      As <- getWeights_hdf5(filename=filename, A=A, XX=X, K=K, mc.cores)
-
+      As <- getWeights_hdf5(filename, A=A, XX=X, K=K, KX=KX, initialGroup = group, mc.cores)
       #..# scores <- mclapply(1:n, getScores_bd, dat=X, As=As, mc.cores=mc.cores)
-      scores <- lapply(1:n, getScores_hdf5, dat = X, As = As, mc.cores)
-
+      scores <- getScores_hdf5(filename, XX = X, As = As, mc.cores)
     for (i in 1:n){
       rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
       colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
