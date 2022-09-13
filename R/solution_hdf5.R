@@ -11,11 +11,11 @@ solution_hdf5 <- function(filename, XX, XKX, mc.cores=1 ) {
     bdapply_Function_hdf5(filename = filename,
                         group = "sol", datasets = tmpSol,
                         b_group = "X", b_datasets = XX,
-                        outgroup = "solans",func = "blockmult",
+                        outgroup = "Mi",func = "blockmult",
                         force = T)
-    datasetSol <- bdgetDatasetsList_hdf5(filename = filename, group = "solans")
+    # datasetSol <- bdgetDatasetsList_hdf5(filename = filename, group = "Mi")
 
-    return("solans")
+    return("Mi")
     # return( list( group = "solans",
     #               datasets = datasetSol) )
 }
