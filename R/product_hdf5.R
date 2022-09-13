@@ -1,9 +1,4 @@
 productXKY_hdf5 <- function(filename, Y, XK, XKX, threads) {
-    # xkx <- XKX[[i]][[1]]
-    # xk <- XKX[[i]][[2]]
-
-    # xky <- blockmult(xk,y, onmemory = T)
-    # ans <- blockmult(xkx,xky, onmemory = T)
 
     bdapply_Function_hdf5(filename = filename,
                           group = "XK", datasets = XK,
@@ -11,8 +6,6 @@ productXKY_hdf5 <- function(filename, Y, XK, XKX, threads) {
                           outgroup = "XKY",func = "blockmult",
                           force = T)
     XKY <- bdgetDatasetsList_hdf5(filename = filename, group = "XKY")
-
-    browser()
 
     bdapply_Function_hdf5(filename = filename,
                           group = "XKX",datasets = XKX,
