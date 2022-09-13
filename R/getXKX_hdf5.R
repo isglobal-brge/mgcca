@@ -3,11 +3,19 @@ getXKX_hdf5 <- function(filename, XX, K, inv, lambda, scores, mc.cores=1) {
     # Get XK and store (to be used later if scores == true)
     if( scores ) {
         bdapply_Function_hdf5(filename = filename,
-                              group = "X",datasets = XX,
-                              b_group = "K", b_datasets = K,
-                              outgroup = "XK",func = "blockmult",
+                              group = "K",datasets = K,
+                              b_group = "X", b_datasets = XX,
+                              outgroup = "KX",func = "blockmult",
+                              transp_dataset = T,transp_bdataset = T,
                               force = T)
     }
+
+    bdapply_Function_hdf5(filename = filename,
+                          group = "X",datasets = XX,
+                          b_group = "K", b_datasets = K,
+                          outgroup = "XK",func = "blockmult",
+                          # transp_dataset = T,transp_bdataset = T,
+                          force = T)
 
     bdapply_Function_hdf5(filename = filename,
                           group = "X",datasets = XX,

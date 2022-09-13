@@ -14,12 +14,12 @@ getDimNames_hdf5 <- function(filename, group, datasetname, sort = FALSE) {
   full_datasetname <- paste0( group, "/.", datasetname, "_dimnames")
 
   if( sort == TRUE ){
-    return(list( rownames = sort(h5read( filename, paste0(full_datasetname, "/2"))),
-                 colnames = sort(h5read( filename, paste0(full_datasetname, "/1"))) )
+    return(list( rownames = sort(rhdf5::h5read( filename, paste0(full_datasetname, "/2"))),
+                 colnames = sort(rhdf5::h5read( filename, paste0(full_datasetname, "/1"))) )
            )
   } else {
-    return(list( rownames = h5read( filename, paste0(full_datasetname, "/2")),
-                 colnames = h5read( filename, paste0(full_datasetname, "/1")) )
+    return(list( rownames = rhdf5::h5read( filename, paste0(full_datasetname, "/2")),
+                 colnames = rhdf5::h5read( filename, paste0(full_datasetname, "/1")) )
     )
   }
 }
@@ -40,9 +40,9 @@ getRowNames_hdf5 <- function(filename, group, datasetname, sort = FALSE) {
   full_datasetname <- paste0( group, "/.", datasetname, "_dimnames")
 
   if( sort == TRUE ){
-    return( sort(h5read( filename, paste0(full_datasetname, "/2"))) )
+    return( sort(rhdf5::h5read( filename, paste0(full_datasetname, "/2"))) )
   } else {
-    return( h5read( filename, paste0(full_datasetname, "/2")) )
+    return( rhdf5::h5read( filename, paste0(full_datasetname, "/2")) )
   }
 
 }
@@ -65,9 +65,9 @@ getColNames_hdf5 <- function(filename, group, datasetname, sort = FALSE) {
   full_datasetname <- paste0( group, "/.", datasetname, "_dimnames")
 
   if( sort == TRUE ) {
-    return( sort(h5read( filename, paste0(full_datasetname, "/1"))) )
+    return( sort(rhdf5::h5read( filename, paste0(full_datasetname, "/1"))) )
   } else {
-    return( h5read( filename, paste0(full_datasetname, "/1")) )
+    return( rhdf5::h5read( filename, paste0(full_datasetname, "/1")) )
   }
 
 }
