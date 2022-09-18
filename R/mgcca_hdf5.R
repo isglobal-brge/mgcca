@@ -147,28 +147,32 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
   } )
 
   if (scores) {
-
       Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
       KX <- bdgetDatasetsList_hdf5(filename = filename, group = "KX")
       XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
-      #..# A <- mclapply(1:n, productXKY_bd, Y=Y, XKX=XKX, mc.cores=mc.cores)
       A <- productXKY_hdf5(filename=filename, Y=Yd, XK=XK, XKX=XKX, mc.cores)
-      #..# As <- mclapply(1:n, getWeights_bd, A=A, XX=X, K=K, mc.cores=mc.cores)
       As <- getWeights_hdf5(filename, A=A, XX=X, K=K, KX=KX, initialGroup = group, mc.cores)
-      #..# scores <- mclapply(1:n, getScores_bd, dat=X, As=As, mc.cores=mc.cores)
       scores <- getScores_hdf5(filename, XX = X, As = As, mc.cores)
-    for (i in 1:n){
-      rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
-      colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
-    }
+
+      #..# REALMENT HO NECESSITEM !!!??????
+    # for (i in 1:n){
+    #   rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
+    #   colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
+    # }
   }
   else {
     scores <- NULL
   }
 
-  if(max(ns)==min(ns))
-    corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
-  else{
+  if(max(ns)==min(ns)){
+    # corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
+    sapply( X, getCor_hdf5(filename, x, y, byblocks, threads),
+            filename = filename, y = Y, byblocks = T, threads = mc.cores  )
+  } else {
+
+      ### ESTIC AQUÍ !!!!! HE DE FER L'INTERSECT PER SABER
+      ### QUINES FILES HE D'UTILITZAR PER FER LA CORRELACIÓ
+      ### !!!! IMPORTANT FER-HO I JA GAIREBÉ ESTARÀ TOT OK !!!
     ff <- function(x, y){
       o <- intersect(rownames(x), rownames(y))
       ans <- cor(x[o,], y[o,])
