@@ -28,12 +28,12 @@ getK_hdf5 <- function(x, ids, m, filename, group, ngroup) {
                              outdataset = x, blockedSortlist = blocks,
                              func = "sortRows", outgroup = "X" )
 
+        BigDataStatMeth::bdWriteDimnames_hdf5( filename, group = "X" ,
+                                               dataset = x,
+                                               rownames = t(as.vector(dimnames[[2]])),
+                                               colnames = X$chr)
+
         BigDataStatMeth::bdCreateEmptyDataset_hdf5(filename, "K", x, nrow(X), nrow(X) )
-        ##
-        ## ==>> TO DO :
-        ## ==>> AQUÍ FALTARÀ AFEGIR EL DIMNAMES I EL COLNAMES!!! A LA NOVA MATRIU X !!!!
-        ## ==>> PERQUÈ SINÓ NO HO TINDREM ORDENAT !!!!
-        ##
         BigDataStatMeth::bdWriteDiagonal_hdf5( rep(1, nrow(X)), filename, "K", x)
 
     } else {
@@ -66,6 +66,11 @@ getK_hdf5 <- function(x, ids, m, filename, group, ngroup) {
         bdSort_hdf5_dataset( filename = filename, group = ngroup, dataset = x,
                              outdataset = x, blockedSortlist = blocks,
                              func = "sortRows", outgroup = "X" )
+
+        BigDataStatMeth::bdWriteDimnames_hdf5( filename, group = "X" ,
+                                               dataset = x,
+                                               rownames = t(as.vector(dimnames[[2]])),
+                                               colnames = X$chr)
 
         BigDataStatMeth::bdCreateEmptyDataset_hdf5(filename, "K", x, nrow(X), nrow(X) )
         BigDataStatMeth::bdWriteDiagonal_hdf5( diagonal, filename, "K", x)

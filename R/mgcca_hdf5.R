@@ -102,6 +102,8 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
   m <- length(rn)  # get the maximum number of individuals
 
   ##..## mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
+  ##
+  # !!! UTILITZAR mclapply ????
   mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group, ngroup = ngroup )
   X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
   K <- bdgetDatasetsList_hdf5(filename = filename, group = "K")
