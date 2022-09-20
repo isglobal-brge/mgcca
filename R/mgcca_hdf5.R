@@ -35,14 +35,14 @@
 mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
                        method="solve", lambda, mc.cores=1, ...) {
 
-  inv.type <- c("solve", "penalized")
-  inv.method <- charmatch(method, inv.type, nomatch = 0)
-  if (inv.method == 0)
+    inv.type <- c("solve", "penalized")
+    inv.method <- charmatch(method, inv.type, nomatch = 0)
+    if (inv.method == 0)
     stop("method should be 'solve' or 'penalized' \n")
 
-  n <- length(datasets) # number of tables
+    n <- length(datasets) # number of tables
 
-  if (inv.method == 2) {
+    if (inv.method == 2) {
       if (missing(lambda)) {
           stop("penalized method requires lambda parameter \n")
       } else {
@@ -50,165 +50,133 @@ mgcca_hdf5 <- function(x, filename, group, datasets, nfac=2, scale=TRUE, pval=TR
               stop("lambda must be a vector of length equal to the number of tables \n")
           }
       }
-  }
+    }
 
-  ##.. HDF5 can't sotre <NA> --> We never foud NA in it. # nas <- sapply(x, function(x) any(is.na(x)))
+    # Create FINAL RESULTS folder
+    BigDataStatMeth::bdCreateGroup_hdf5(filename, "FINAL_RESULTS" )
 
-  ##.. if (any(nas))
-  ##..   stop("Missing values are not allowed. Either use 'impute' package or
-  ##..       use tables with complete cases.")
-
-  if (scale) {
+    if (scale) {
       #..# x <- lapply(x, scale)
       x <- lapply(datasets, bdNormalize_hdf5, filename = filename, group = group, bcenter=TRUE, bscale=TRUE, force = TRUE, byrows = TRUE )
-  }
+    }
 
-  currentdatasets <- sapply(datasets, function(d, g) {
-      if(scale) {
-          daasetname <- paste("NORMALIZED", g, d, sep = "/")
-      } else {
-          daasetname <- paste( g, d, sep = "/")
-      }
-  }, g = group)
+    currentdatasets <- sapply(datasets, function(d, g) {
+        if(scale) {
+            daasetname <- paste("NORMALIZED", g, d, sep = "/")
+        } else {
+            daasetname <- paste( g, d, sep = "/")
+        }
+    }, g = group)
 
-  distancia <- regexpr("\\/[^\\/]*$", currentdatasets[1])[[1]]
-  ngroup <-  substr(currentdatasets[1],1,distancia-1)
-  # print("Examinar currentdatasets per extreure posteriorment el grup")
-  # print(distancia)
-  # print(substr(currentdatasets[1],1,distancia-1))
-  # browser()
-  ## FINS AQUÍ OK !!! NORMALITZA LES DADES OK !!!
+    distancia <- regexpr("\\/[^\\/]*$", currentdatasets[1])[[1]]
+    ngroup <-  substr(currentdatasets[1],1,distancia-1)
 
-  #..  No te sentit ..# if (!is.list(x))
-  #..  No te sentit ..#   stop("x must be a list containing the different matrices")
+    if(length(currentdatasets)<=1)
+        stop("we need more than one dataset to perform mgcca analysis")
 
-  if(length(currentdatasets)<=1)
-    stop("we need more than one dataset to perform mgcca analysis")
-
-  #..  No te sentit ..# if (any(unlist(lapply(x, function(x) !is.matrix(x)))))
-  #..  No te sentit ..#   x <- lapply(x, as.matrix)
+    ns <- sapply( currentdatasets, function(dataset, file) { return( bdgetDim_hdf5(file, dataset)[2] ) }, file = filename )
 
 
-  #..# ns <- sapply(x, nrow)
-  ns <- sapply( currentdatasets, function(dataset, file) { return( bdgetDim_hdf5(file, dataset)[2] ) }, file = filename )
+    if(max(ns)==min(ns)) { # check whether there are missing individuals
+        rn <- Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group))
+    } else {
+        rn <- sort(Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group)))
+    }
 
+    m <- length(rn)  # get the maximum number of individuals
 
-  if(max(ns)==min(ns)) { # check whether there are missing individuals
-      rn <- Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group))
-  } else {
-      rn <- sort(Reduce('union', sapply(datasets, getRowNames_hdf5, filename = filename, group = group)))
-  }
-
-  m <- length(rn)  # get the maximum number of individuals
-
-  ##..## mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group )
-  ##
-  # !!! UTILITZAR mclapply ????
-  mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group, ngroup = ngroup )
-  X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
-  K <- bdgetDatasetsList_hdf5(filename = filename, group = "K")
-  p <-  sapply( paste0( "X/",X), function(el, filename){
+    mclapply( datasets, getK_hdf5, ids=rn, m=m, mc.cores=mc.cores, filename = filename, group = group, ngroup = ngroup )
+    X <- bdgetDatasetsList_hdf5(filename = filename, group = "X")
+    K <- bdgetDatasetsList_hdf5(filename = filename, group = "K")
+    p <-  sapply( paste0( "X/",X), function(el, filename){
         res <- BigDataStatMeth::bdgetDim_hdf5(filename, el)
         return(res[2]) # number of variables per table
     }, filename = filename )
 
-  numvars <- min(p) # minimum number of variables
+    numvars <- min(p) # minimum number of variables
 
-  getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, scores, mc.cores=mc.cores)
+    getXKX_hdf5(filename, X, K, inv.method, lambda=lambda, scores, mc.cores=mc.cores)
 
-  # # Get the required XKX product and inverse that is computed multiple times
-  # XKX <- getXKX_bd(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
-  #..# Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
+    XKX <- bdgetDatasetsList_hdf5(filename = filename, group = "XKX")
+    Mi <- solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
 
-  XKX <- bdgetDatasetsList_hdf5(filename = filename, group = "XKX")
-  Mi <- solution_hdf5( filename = filename, X = X, XKX = XKX, mc.cores)
+    bdReduce_matrix_hdf5(filename = filename, group = Mi, reducefunction = "+", outgroup = "FinalRes", outdataset = "M")
 
-  #..# M <- Reduce('+', Mi)
-  bdReduce_matrix_hdf5(filename = filename, group = Mi, reducefunction = "+", outgroup = "FinalRes", outdataset = "M")
+    bdReduce_matrix_hdf5(filename = filename, group = "K", reducefunction = "+", outgroup = "FinalRes", outdataset = "Ksum")
 
-  #..# Ksum <- Reduce('+', K)
-  bdReduce_matrix_hdf5(filename = filename, group = "K", reducefunction = "+", outgroup = "FinalRes", outdataset = "Ksum")
+    Ksum <- bdgetDiagonal_hdf5(filename, "FinalRes", "Ksum")
+    bdAdd_hdf5_matrix(as.matrix(Ksum^-0.5), filename, "FinalRes", "Ksum05")
+    mult_wXw_hdf5(filename, "FinalRes","M", "FinalRes", "Ksum05")
 
-  Ksum <- bdgetDiagonal_hdf5(filename, "FinalRes", "Ksum")
-  bdAdd_hdf5_matrix(as.matrix(Ksum^-0.5), filename, "FinalRes", "Ksum05")
-  mult_wXw_hdf5(filename, "FinalRes","M", "FinalRes", "Ksum05")
+    bdSVD_hdf5( filename,group = "FinalRes", dataset = "MKsum05",bcenter = F,bscale = F)
 
-  #..# eig <- BDSM::bdSVD_lapack(MKsum05, bcenter = FALSE, bscale = FALSE)
-  BigDataStatMeth::bdSVD_hdf5( filename,group = "FinalRes", dataset = "MKsum05",bcenter = F,bscale = F)
+    Yast <- Re( rhdf5::h5read(filename,"SVD/MKsum05/u",))[,1:nfac]
 
-  #..# Yast <- Re(eig$u[,1:nfac])
-  Yast <- Re( rhdf5::h5read(filename,"SVD/MKsum05/u",))[,1:nfac]
+    Y <- sqrt(n)* bdwproduct(Yast, Ksum^-0.5, "wX")
+    colnames(Y) <- paste0("comp", 1:ncol(Y))
+    rownames(Y) <- rn
 
-  Y <- sqrt(n)* bdwproduct(Yast, Ksum^-0.5, "wX")
-  colnames(Y) <- paste0("comp", 1:ncol(Y))
-  rownames(Y) <- rn
-
-  sapply(datasets, function(dataset) {
-      bdAdd_hdf5_matrix(object = Y, filename = filename, group = "FinalRes/Y",
+    sapply(datasets, function(dataset) {
+        bdAdd_hdf5_matrix(object = Y, filename = filename, group = "FinalRes/Y",
                         dataset = paste0(dataset,".Y"), force = T)
-  } )
+    } )
 
-  if (scores) {
-      Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
-      KX <- bdgetDatasetsList_hdf5(filename = filename, group = "KX")
-      XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
-      A <- productXKY_hdf5(filename=filename, Y=Yd, XK=XK, XKX=XKX, mc.cores)
-      As <- getWeights_hdf5(filename, A=A, XX=X, K=K, KX=KX, initialGroup = group, mc.cores)
-      scores <- getScores_hdf5(filename, XX = X, As = As, mc.cores)
-
-      #..# REALMENT HO NECESSITEM !!!??????
-    # for (i in 1:n){
-    #   rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
-    #   colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
-    # }
-  }
-  else {
-    scores <- NULL
-  }
-
-  if(max(ns)==min(ns)){
-    # corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
-    sapply( X, getCor_hdf5(filename, x, y, byblocks, threads),
-            filename = filename, y = Y, byblocks = T, threads = mc.cores  )
-  } else {
-
-      ### ESTIC AQUÍ !!!!! HE DE FER L'INTERSECT PER SABER
-      ### QUINES FILES HE D'UTILITZAR PER FER LA CORRELACIÓ
-      ### !!!! IMPORTANT FER-HO I JA GAIREBÉ ESTARÀ TOT OK !!!
-    ff <- function(x, y){
-      o <- intersect(rownames(x), rownames(y))
-      ans <- cor(x[o,], y[o,])
-      ans
+    if (scores) {
+        Yd <- bdgetDatasetsList_hdf5(filename = filename, group = "FinalRes/Y")
+        KX <- bdgetDatasetsList_hdf5(filename = filename, group = "KX")
+        XK <- bdgetDatasetsList_hdf5(filename = filename, group = "XK")
+        A <- productXKY_hdf5(filename=filename, Y=Yd, XK=XK, XKX=XKX, mc.cores)
+        As <- getWeights_hdf5(filename, A=A, XX=X, K=K, KX=KX, initialGroup = group, mc.cores)
+        scores <- getScores_hdf5(filename, XX = X, As = As, mc.cores)
+        sapply(scores, function(sdataset) {
+          bdWriteDimnames_hdf5( filename, group = "FINAL_RESULTS/scores", dataset = sdataset,rownames = rn,colnames = colnames(Y))
+        } )
+    } else {
+        scores <- NULL
     }
-    corsY <- mclapply(x, ff, y=Y, mc.cores=mc.cores)
-  }
 
-  if (pval)
-    pval.cor <- mclapply(corsY, cor.test.p, n=m, mc.cores=mc.cores)
-  else
-    pval.cor <- NULL
+    corsY <- lapply( X, function(dataX) {
+        res <- getCor_hdf5(filename = filename, x = dataX, Xgroup = "X", Ygroup = "FinalRes/Y",
+                         y = Y, byblocks = T, threads = mc.cores)
+        return(res)
+    })
 
-  if(is.null(names(x)))
-    names(x) <- paste0("df", 1:length(x))
+    sapply(1:length(corsY), function(i) {
+        bdAdd_hdf5_matrix( corsY[[i]] , filename, group = "FINAL_RESULTS/corsY",
+                         dataset = X[i], force = T)
+    })
 
-  names(corsY) <- names(x)
+    # Create FINAL RESULTS
 
-  if(!is.null(scores))
-    names(scores) <- names(x)
-  if(pval)
-    names(pval.cor) <- names(x)
+    if (pval) {
+        pval.cor <- mclapply(corsY, cor.test.p, n=m, mc.cores=mc.cores)
+        sapply(1:length(pval.cor), function(i) {
+            bdAdd_hdf5_matrix( pval.cor[[i]] , filename, group = "FINAL_RESULTS/pval",
+                               dataset = X[i], force = T)
+        })
+    } else {
+        pval.cor <- NULL
+    }
 
-  AVE_X <- lapply(corsY, function(x) apply(x^2, 2, mean))
-  outer <- matrix(unlist(AVE_X), nrow = nfac)
-  AVE_outer <- sapply(1:nfac, function(j, p) sum(p * outer[j,])/sum(p),
+    AVE_X <- lapply(corsY, function(x) apply(x^2, 2, mean))
+    outer <- matrix(unlist(AVE_X), nrow = nfac)
+    AVE_outer <- sapply(1:nfac, function(j, p) sum(p * outer[j,])/sum(p),
                       p=p)
-  AVE_inner <- Re(eig$v[1:nfac])
-  AVE <- list(AVE_X = AVE_X,
-              AVE_outer_model = AVE_outer,
-              AVE_inner_model = AVE_inner)
+    # AVE_inner <- Re(eig$v[1:nfac])
+    AVE_inner <- Re( rhdf5::h5read(filename,"SVD/MKsum05/v",))[,1:nfac]
 
-  ans <- list(Y=Y, corsY=corsY, scores=scores,
-              pval.cor=pval.cor, AVE=AVE)
-  class(ans) <- "mgcca"
-  ans
+    sapply(1:length(AVE_X), function(i) {
+      bdAdd_hdf5_matrix( as.matrix(AVE_X[[i]]) , filename, group = "FINAL_RESULTS/AVE/AVE_X",
+                         dataset = X[i], force = T)
+    })
+    sapply(1:length(AVE_outer), function(i) {
+      bdAdd_hdf5_matrix( AVE_outer[[i]] , filename, group = "FINAL_RESULTS/AVE/AVE_outer",
+                         dataset = X[i], force = T)
+    })
+
+    bdAdd_hdf5_matrix( AVE_inner , filename, group = "FINAL_RESULTS/AVE",
+                     dataset = "AVE_inner", force = T)
+
+    bdAdd_hdf5_matrix( Y , filename, group = "FINAL_RESULTS",
+                     dataset = "Y", force = T)
 }
