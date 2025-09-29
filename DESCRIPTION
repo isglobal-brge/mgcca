@@ -3,9 +3,21 @@ Type: Package
 Title: Generalized Canonical Correlation Analysis having missing individuals
 Version: 0.9.9
 Date: 2018-09-03
-Authors@R: c( person("Dolors", "Pelegri-Siso", "dolors.pelegri@isglobal.org", role = c("aut", "cre")),
-              person("Isaac", "Subirana",  role = c("aut"))
-              person("Juan R.", "Gonzalez", "juanr.gonzalez@isglobal.org", role = c("aut")))
+Authors@R: 
+  c(  person( given = "Dolors", 
+              family = "Pelegri-Siso", 
+              email = "dolors.pelegri@isglobal.org", 
+              role = c("aut", "cre"), 
+              comment = c(ORCID = "0000-0002-5993-3003")),
+      person( given = "Isaac", 
+              family = "Subirana",
+              role = c("aut")),
+      person( given = "Juan R.", 
+              family = "Gonzalez", 
+              email = "juanr.gonzalez@isglobal.org", 
+              role = c("aut"), 
+              comment = c(ORCID = "0000-0003-3267-2146"))
+    )
 Depends: 
     BiocStyle,
     MASS,
@@ -13,6 +25,7 @@ Depends:
     RSpectra,
     made4,
     BigDataStatMeth,
+    MultiAssayExperiment,
     R (>= 3.5.0)
 Imports: 
 Description: 
@@ -22,4 +35,4 @@ VignetteBuilder: knitr
 Suggests: BiocStyle, knitr, rmarkdown
 LazyData: TRUE
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2

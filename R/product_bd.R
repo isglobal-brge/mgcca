@@ -1,9 +1,9 @@
 productXKY_bd <- function(i, Y, XKX) {
   xkx <- XKX[[i]][[1]]
   xk <- XKX[[i]][[2]]
-  xky <- blockmult(xk,y, onmemory = T)
-  ans <- blockmult(xkx,xky, onmemory = T)
-  ans
+  xky <- blockmult(xk,Y, onmemory = T)
+  ans <- blockmult(xkx,xky[[1]], onmemory = T)
+  ans[[1]]
 }
 
 productYKX_bd <- function(i, Y, K, XX) {

@@ -2,6 +2,9 @@
 
 export(gcca)
 export(genCoords)
+export(getColNames_hdf5)
+export(getDimNames_hdf5)
+export(getRowNames_hdf5)
 export(getSignif)
 export(getTables)
 export(getTables_hdf5)
