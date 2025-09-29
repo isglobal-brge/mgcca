@@ -1,43 +1,50 @@
 getCor_hdf5 <- function(filename, Xgroup, x, Ygroup, y, byblocks, threads) {
 
-    maxelements <- 30000
-
     common <- BigDataStatMeth::bdgetDiagonal_hdf5(filename, group = "K", dataset =  x)
     common_elems <- which(common!=0)
 
-    if (!inherits(y, "matrix") && !inherits(y, "data.frame")) {
-        if(inherits(y,"character")){
-            Y <- rhdf5::h5read(filename,y, index = list(common_elems, NULL))
-        }
+    # Subset dataset if there are missing samples inside
+    if( length(common_elems) != length(common) ) {
+        xgroup_inter <- "tmp"
+        ygroup_inter <- "tmp"
+
+        bdsubset_hdf5_dataset(filename = filename, dataset_path = paste0( Ygroup, "/", y),
+                              indices = common_elems,  select_rows = TRUE,
+                              new_group = "tmp",  new_name = y, overwrite = TRUE)
+
+        bdsubset_hdf5_dataset(filename = filename, dataset_path = paste0( Xgroup, "/", x),
+                              indices = common_elems, select_rows = FALSE,
+                              new_group = "tmp",  new_name = x, overwrite = TRUE)
     } else {
-        if(inherits(y, "data.frame")) {
-            Y <- as.matrix(y[common_elems,])
-        } else {
-            Y <- y[common_elems,]
-        }
+        xgroup_inter <- Xgroup
+        ygroup_inter <- Ygroup
     }
 
-    if (byblocks) {
-            dims <- BigDataStatMeth::bdgetDim_hdf5(filename, paste0(Xgroup,"/", x))
+    res <- bdCorr_hdf5( filename_x = filename, group_x = xgroup_inter, dataset_x = x, trans_x = TRUE,
+            filename_y = filename, group_y = ygroup_inter, dataset_y = y, compute_pvalues = TRUE)
 
-            if(dims[1] < maxelements) { sizeblock <- maxelements / dims[1]
-            } else { sizeblock <- 1 }
+    bdmove_hdf5_dataset(filename,source_path = paste0(res$group, "/", res$correlation ),
+                        dest_path =  paste0("FINAL_RESULTS/corsY/", x), overwrite = TRUE )
+    bdWrite_hdf5_dimnames(filename = filename,
+                       group = "FINAL_RESULTS/corsY/",
+                       dataset = x,
+                       rownames = t(getDimNames_hdf5(filename, Xgroup, x)$rownames),
+                           colnames = paste0("comp", seq_len(res$n_variables_y)))
 
-            xg <- split(1:dims[1], ceiling(seq_along(1:dims[1])/sizeblock))
+    bdmove_hdf5_dataset(filename,source_path = paste0(res$group, "/", res$pvalues ),
+                        dest_path =  paste0("FINAL_RESULTS/pval.cor/", x), overwrite = TRUE )
 
-            res <- lapply(xg, function(dat, mY) {
-                X <- rhdf5::h5read(filename, paste0(Xgroup,"/",x), index = list(dat, common_elems))
-                cor(t(X),mY)
-            }, mY = Y)
-            res <- do.call(rbind,res)
+    bdWrite_hdf5_dimnames(filename = filename,
+                       group = "FINAL_RESULTS/pval.cor/",
+                       dataset = x,
+                       rownames = t(getDimNames_hdf5(filename, Xgroup, x)$rownames),
+                       colnames = paste0("comp", seq_len(res$n_variables_y)))
 
-    } else {
-        X <- rhdf5::h5read(filename, paste0(Xgroup,"/",x),
-                           index = list(NULL, common_elems))
-        res <- cor(X,Y)
+    # Remove intermediate datasets
+    if(xgroup_inter == "tmp") {
+        BigDataStatMeth::bdRemove_hdf5_element(filename, paste0(xgroup_inter, "/", x ) )
+        BigDataStatMeth::bdRemove_hdf5_element(filename, paste0(ygroup_inter, "/", y ) )
     }
 
-    rownames(res) <- t(getDimNames_hdf5(filename, Xgroup, x)$colnames)
-    return(res)
 }
 

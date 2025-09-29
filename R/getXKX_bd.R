@@ -15,7 +15,7 @@ getXKX_bd.i <- function(i, XX, K, inv, lambda, nthreads)
   if (inv==1) # solve
     xkx <- bdInvCholesky(M)
   else if (inv==2) # penalized
-    xkx <- bdInvCholesky(M + bdScalarwproduct(diag(nrow(M)), lambda[i], "wX"))
+    xkx <- bdInvCholesky(M + bdScalarwproduct(diag(nrow(M)), lambda[i]))
 
   else
     stop("need correct method")

@@ -33,13 +33,14 @@
 #'
 #' @export
 #' @importFrom parallel mclapply
-#' @importFrom rfunctions geninv cgls
 #' @importFrom MASS ginv
 #' @importFrom RSpectra eigs eigs_sym
 
 mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
                   method="solve", lambda, mc.cores=1, ...) {
 
+
+  # #' @importFrom rfunctions geninv cgls
   inv.type <- c("solve", "penalized")
   inv.method <- charmatch(method, inv.type, nomatch = 0)
   if (inv.method == 0)
@@ -134,7 +135,8 @@ mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
       ans <- cor(x[o,], y[o,])
       ans
     }
-    corsY <- mclapply(x, ff, y=Y, mc.cores=mc.cores)
+    # corsY <- mclapply(x, ff, y=Y, mc.cores=mc.cores)
+    corsY <- lapply(x, ff, y=Y)
   }
 
   if (pval)

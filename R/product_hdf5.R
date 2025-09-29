@@ -4,14 +4,14 @@ productXKY_hdf5 <- function(filename, Y, XK, XKX, threads) {
                           group = "XK", datasets = XK,
                           b_group = "FinalRes/Y", b_datasets = Y,
                           outgroup = "XKY",func = "blockmult",
-                          force = T)
+                          overwrite = TRUE)
     XKY <- bdgetDatasetsList_hdf5(filename = filename, group = "XKY")
 
     bdapply_Function_hdf5(filename = filename,
                           group = "XKX",datasets = XKX,
                           b_group = "XKY", b_datasets = XKY,
                           outgroup = "scores/A",func = "blockmult",
-                          force = T)
+                          overwrite = TRUE)
     A <- bdgetDatasetsList_hdf5(filename = filename, group = "scores/A")
 
     return(A)

@@ -39,3 +39,4 @@
 *.so
 *.o
 *.hdf5
+/tests

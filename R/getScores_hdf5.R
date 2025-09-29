@@ -5,7 +5,7 @@ getScores_hdf5 <- function(filename, XX, As, threads) {
                           group = "X", datasets = XX,
                           b_group = "scores/As", b_datasets = As,
                           outgroup = grp_score, func = "blockmult",transp_dataset = T,
-                          force = T)
+                          overwrite = TRUE)
     scores <- bdgetDatasetsList_hdf5(filename = filename, group = grp_score)
     return(scores)
 

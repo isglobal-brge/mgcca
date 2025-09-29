@@ -2,27 +2,36 @@
 % Please edit documentation in R/getTables_hdf5.R
 \name{getTables_hdf5}
 \alias{getTables_hdf5}
-\title{Splits a MultiAssayExperiment in a list of tables}
+\title{Split a MultiAssayExperiment into HDF5 tables}
 \usage{
 getTables_hdf5(
   multiassayexperiment,
   filename,
   overwriteFile = FALSE,
-  overwriteDataset = FALSE
+  overwriteDataset = FALSE,
+  debugncols = NULL,
+  debugnrows = NULL
 )
 }
 \arguments{
-\item{multiassayexperiment}{MultiAssayExperiment}
+\item{multiassayexperiment}{A \code{MultiAssayExperiment} (or compatible).}
 
-\item{filename}{string with file name}
+\item{filename}{Character string. Path to the target HDF5 file.}
 
-\item{overwriteFile}{boolean, if true , file is overwritten}
+\item{overwriteFile}{Logical. If \code{TRUE}, overwrite/create the file.}
 
-\item{overwriteDataset}{boolean, if true , dataset is overwritten}
+\item{overwriteDataset}{Logical. If \code{TRUE}, overwrite existing datasets.}
+
+\item{debugncols}{\code{NULL} or single integer. If \code{NULL}, use all
+columns; otherwise keep the first \code{debugncols} columns of each assay.}
+
+\item{debugnrows}{\code{NULL} or single integer. If \code{NULL}, use all
+rows; otherwise keep the first \code{debugnrows} rows of each assay.}
 }
 \value{
-List of tables
+A named list with one entry per assay (tables written to HDF5).
 }
 \description{
-Splits a MultiAssayExperiment in a list of tables
+Write each assay from a \code{MultiAssayExperiment} to an
+  HDF5 file (group \code{"MGCCA_IN"}) and return a list of tables.
 }
