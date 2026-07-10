@@ -1,168 +1,98 @@
-#' Generalized canonical correlation with missing individuals
+#' Generalized Canonical Correlation Analysis with missing individuals
 #'
-#' @param x list of matrices. Each matrix should have the ids in the
-#' rownames. Missing is not allowed (see details)
-#' @param nfac ...
-#' @param scale ...
-#' @param pval should p-values of correlation between variables and shared canonical variates be computed? Default is TRUE.
-#' @param scores should canonical variables be computed for each table?
-#'               Default is FALSE. See details
-#' @param method ...
-#' @param lambda ...
-#' @param mc.cores ...
-#' @details
-#' eigen with Rfast hd.eigen select number of components speed up process (RSpectra?)
-#' rownames matrices ... si hay distintos ordena - si no, no.
-#' missings ...  dos opciones#'
-#' scores .. si queremos correlation with each table!
-#' inversa ...
-#' "solve" para n>>p (pero lento) (solve function)
-#' "penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
-
-#' "geninv" n<p generalized inverse (rfunctions geninv)
-#' "ginv" generalized inverse (MASS ginv)
+#' @description High-level, one-call entry point for the C++/HDF5 MGCCA pipeline:
+#'   import any supported input into HDF5, then run the single-call orchestrator
+#'   \code{\link{mgcca_rcpp}}. Results are written to the HDF5 file under
+#'   \code{FINAL_RESULTS} (\code{Y}, \code{corsY}, \code{pval}, \code{AVE}, and
+#'   \code{scores} if requested); with \code{collect = TRUE} they are also
+#'   returned in memory as an object of class \code{"mgcca"} ready for
+#'   \code{\link{plotIndividuals}} / \code{\link{plotVariables}}.
 #'
-#' @return a list consisting of
-#'   \item{Y}{canonical components for the shared space}
-#'   \item{corsY}{correlation between variables and shared canonical components}
-#'   \item{scores}{canonical componets for each table}
-#'   \item{p.values}{p-values of correlation between variables and shared canonical components}
-#'   \item{AVE}{indicators of model quality based on the Average Variance Explained (AVE): AVE for each table, AVE_outer (average accross tables), AVE_inner(for the shared component).}
+#' @param x Input data: an HDF5 file path (data already under \code{group}), a
+#'   \code{MultiAssayExperiment}, an \code{ExpressionSet}/
+#'   \code{SummarizedExperiment}, or a named \code{list} of matrices
+#'   (individuals x variables, rownames = individual IDs).
+#' @param filename Target HDF5 file (ignored when \code{x} is an HDF5 path).
+#' @param group Input HDF5 group. Default \code{"MGCCA_IN"}.
+#' @param datasets Optional dataset names (subset/order).
+#' @param nfac Number of shared components. Default 2.
+#' @param scale If TRUE (default), column-center+scale each table before
+#'   analysis. Scaling is performed \emph{inside} the HDF5 file (out-of-core,
+#'   base-R \code{scale()} semantics) after a raw, untransformed import, so it
+#'   applies uniformly to every input type -- including inputs that are already
+#'   an HDF5 file -- and never loads a full table into RAM.
+#' @param method Inversion method: \code{"solve"} (SPD Cholesky),
+#'   \code{"penalized"} (requires \code{lambda}), or \code{"geninv"}/\code{"ginv"}
+#'   (Moore-Penrose pseudoinverse).
+#' @param lambda Numeric vector (length = number of tables) for
+#'   \code{method = "penalized"}.
+#' @param scores If TRUE, also compute per-table weights and scores.
+#' @param route Per-table algebra route: \code{"auto"} (default) picks per table
+#'   by \code{min(n, p)} (covariance \code{X'X} when \code{p < n}, Gram
+#'   \code{XX'} when \code{p >= n}); \code{"cov"} or \code{"dual"} force one route
+#'   for all tables. The Gram/dual route is the one that scales to \code{p >> n}
+#'   (e.g. full methylation) without ever forming a \code{p x p} matrix.
+#' @param threads Optional thread count.
+#' @param overwrite If TRUE (default), overwrite the file/datasets on import.
+#' @param collect If TRUE (default), read the results back from HDF5 and return an
+#'   in-memory object of class \code{"mgcca"} (via \code{\link{mgcca_results}})
+#'   ready for \code{\link{plotIndividuals}} / \code{\link{plotVariables}} /
+#'   \code{\link{getSignif}}; the HDF5 descriptor is kept on its \code{"desc"}
+#'   attribute. With \code{collect = FALSE} the lightweight descriptor list is
+#'   returned instead (results still live in the HDF5 file).
+#'
+#' @return With \code{collect = TRUE} (default), an object of class
+#'   \code{"mgcca"} (see \code{\link{mgcca_results}}); its HDF5 descriptor is on
+#'   \code{attr(., "desc")}. With \code{collect = FALSE}, the descriptor list
+#'   (\code{filename}, \code{datasets}, \code{nfac}, \code{m}, \code{eig_values},
+#'   \code{route}, ...). Results always live in the file under
+#'   \code{FINAL_RESULTS}.
+#' @seealso \code{\link{mgcca_results}}, \code{\link{plotIndividuals}},
+#'   \code{\link{mgcca_import_hdf5}}, \code{\link{mgcca_rcpp}}
 #' @examples
-#' see vignette
-#'
+#' \dontrun{
+#' data(cardiovascular)
+#' X <- list(methylation = as.matrix(X1),
+#'           clinical    = as.matrix(X2),
+#'           other       = as.matrix(X3))
+#' fit <- mgcca(X, filename = tempfile(fileext = ".h5"),
+#'              method = "solve", scores = TRUE, collect = TRUE)
+#' plotIndividuals(fit)
+#' }
 #' @export
-#' @importFrom parallel mclapply
-#' @importFrom rfunctions geninv cgls
-#' @importFrom MASS ginv
-#' @importFrom RSpectra eigs eigs_sym
+mgcca <- function(x, filename, group = "MGCCA_IN", datasets = NULL, nfac = 2,
+                  scale = TRUE, method = "penalized", lambda = NULL,
+                  scores = FALSE, route = c("auto", "cov", "dual"),
+                  threads = NULL, overwrite = TRUE, collect = TRUE) {
 
-mgcca <- function(x, nfac=2, scale=TRUE, pval=TRUE, scores=FALSE,
-                  method="solve", lambda, mc.cores=1, ...) {
+    route <- match.arg(route)
+    inv <- switch(method, solve = 1L, penalized = 2L, geninv = 3L, ginv = 3L,
+                  stop("method must be 'solve', 'penalized', 'geninv' or 'ginv'"))
+    if (inv == 2L && (is.null(lambda)))
+        stop("method 'penalized' requires 'lambda'")
 
-  inv.type <- c("solve", "penalized")
-  inv.method <- charmatch(method, inv.type, nomatch = 0)
-  if (inv.method == 0)
-    stop("method should be 'solve' or 'penalized' \n")
+    # Import RAW, untransformed: any transformation belongs in HDF5, not in R
+    # memory. Scaling (if requested) is done out-of-core by mgcca_rcpp before
+    # getK, so it applies uniformly whatever the input type -- including inputs
+    # that are already an HDF5 file.
+    desc <- mgcca_import_hdf5(x, filename = filename, group = group,
+                              datasets = datasets, overwriteFile = overwrite,
+                              overwriteDataset = overwrite)
 
-  n <- length(x) # number of tables
+    res <- mgcca_rcpp(desc$filename, desc$group, desc$datasets,
+                      nfac = as.integer(nfac), inv_method = inv, lambda = lambda,
+                      scores = scores, scale = isTRUE(scale), route = route,
+                      threads = threads)
 
-  if (inv.method == 2){
-    if (missing(lambda))
-      stop("penalized method requires lambda parameter \n")
-    else
-      if(length(lambda)!=n)
-        stop("lambda must be a vector of length equal to the number of tables \n")
-  }
+    # Persist the provenance manifest as native HDF5 attributes so the results
+    # file is self-describing and reloadable via mgcca_load() without this
+    # session. Done whether or not we collect, so collect = FALSE files carry it.
+    .mgcca_write_manifest(res, method = method, lambda = lambda)
 
-  nas <- sapply(x, function(x) any(is.na(x)))
+    if (!isTRUE(collect))
+        return(res)
 
-  if (any(nas))
-   stop("Missing values are not allowed. Either use 'impute' package or
-        use tables with complete cases.")
-
-  if (scale)
-    x <- lapply(x, scale)
-
-
-  if (!is.list(x))
-    stop("x must be a list containing the different matrices")
-
-  if (any(unlist(lapply(x, function(x) !is.matrix(x)))))
-    x <- lapply(x, as.matrix)
-
-  ns <- sapply(x, nrow)
-  if(max(ns)==min(ns)) # check whether there are missing individuals
-    rn <- Reduce('union', lapply(x, rownames))
-  else
-    rn <- sort(Reduce('union', lapply(x, rownames)))
-  m <- length(rn)  # get the maximum number of individuals
-
-  XK <- mclapply(x, getK, ids=rn, m=m, mc.cores=mc.cores)
-  X <- lapply(XK, '[[', 1)
-  K <- lapply(XK, '[[', 2)
-
-  p <- sapply(X, ncol) # number of variables per table
-  numvars <- min(p) # minimum number of variables
-
-  # Get the required XKX product and inverse that is computed multiple times
-  XKX <- getXKX(X, K, inv.method, lambda=lambda, mc.cores=mc.cores)
-
-  Mi <- mclapply(1:n, solution, XX=X, K=K, XKX=XKX, mc.cores=mc.cores)
-  M <- Reduce('+', Mi)
-  Ksum <- Reduce('+', K)
-
-  # old computation M<-Ksum05%*%M%*%Ksum05
-  # Ksum05 <- Ksum
-  # diag(Ksum05) <- diag(Ksum05)^(-.5)
-
-  # ... this is much faster! (new function mult_wXw)
-  Ksum05 <- diag(Ksum)^(-0.5)
-  MKsum05 <- mult_wXw(M, Ksum05)
-
-
-  if(isSymmetric(MKsum05))
-    eig <- eigs_sym(MKsum05, k=nfac, ...)
-  else
-    eig <- eigs(MKsum05, k=nfac, ...)
-
-  Yast <- Re(eig$vectors)
-
-  # Y<-sqrt(n)*Ksum05%*%Yast
-  Y <- sqrt(n)*mult_wX(Yast, Ksum05)
-  colnames(Y) <- paste0("comp", 1:ncol(Y))
-  rownames(Y) <- rn
-
-  if (scores) {
-    A <- mclapply(1:n, productXKY, Y=Y, XKX=XKX, mc.cores=mc.cores)
-    As <- mclapply(1:n, getWeights, A=A, XX=X, K=K, mc.cores=mc.cores)
-    scores <- mclapply(1:n, getScores, dat=X, As=As, mc.cores=mc.cores)
-    for (i in 1:n){
-      rownames(A[[i]]) <- rownames(As[[i]]) <- colnames(x[[i]])
-      colnames(A[[i]]) <- colnames(As[[i]]) <- paste0("comp", 1:ncol(A[[i]]))
-    }
-  }
-  else {
-    scores <- NULL
-  }
-
-  if(max(ns)==min(ns))
-    corsY <- mclapply(x, function(x, y) cor(x, y), y=Y, mc.cores=mc.cores)
-  else{
-    ff <- function(x, y){
-      o <- intersect(rownames(x), rownames(y))
-      ans <- cor(x[o,], y[o,])
-      ans
-    }
-    corsY <- mclapply(x, ff, y=Y, mc.cores=mc.cores)
-  }
-
-  if (pval)
-    pval.cor <- mclapply(corsY, cor.test.p, n=m, mc.cores=mc.cores)
-  else
-    pval.cor <- NULL
-
-  if(is.null(names(x)))
-    names(x) <- paste0("df", 1:length(x))
-
-  names(corsY) <- names(x)
-
-  if(!is.null(scores))
-    names(scores) <- names(x)
-  if(pval)
-    names(pval.cor) <- names(x)
-
-  AVE_X <- lapply(corsY, function(x) apply(x^2, 2, mean))
-  outer <- matrix(unlist(AVE_X), nrow = nfac)
-  AVE_outer <- sapply(1:nfac, function(j, p) sum(p * outer[j,])/sum(p),
-                      p=p)
-  AVE_inner <- Re(eig$values)
-  AVE <- list(AVE_X = AVE_X,
-              AVE_outer_model = AVE_outer,
-              AVE_inner_model = AVE_inner)
-
-  ans <- list(Y=Y, corsY=corsY, scores=scores,
-              pval.cor=pval.cor, AVE=AVE)
-  class(ans) <- "mgcca"
-  ans
+    obj <- mgcca_results(res)
+    attr(obj, "desc") <- res
+    obj
 }
