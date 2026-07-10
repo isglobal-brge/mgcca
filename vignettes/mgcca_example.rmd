@@ -7,7 +7,7 @@ author: |
    https://brge.isglobal.org
 date: "`r Sys.Date()`"
 package: "`r pkg_ver('mgcca')`"
-output: 
+output:
   BiocStyle::html_document:
     number_sections: true
     toc: yes
@@ -19,351 +19,407 @@ output:
 vignette: >
   %\VignetteIndexEntry{Generalized Canonical Correlation with missing individuals - Examples}
   %\VignetteEngine{knitr::rmarkdown}
-  \usepackage[utf8]{inputenc} 
+  \usepackage[utf8]{inputenc}
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, cache = TRUE)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 6, fig.height = 6)
 ```
 
 # Introduction
 
+This vignette shows how to integrate several data tables with `mgcca`,
+Generalized Canonical Correlation Analysis with *missing individuals* (van de
+Velden and Takane, 2012). A shared set of latent components is estimated across
+tables even when the tables do not share exactly the same individuals: an
+individual absent from a table simply does not contribute to that table.
 
-This manual describes how to perform gcca to integrate multiple tables, using the `mgcca` function. The `mgcca` function is designed for small tables, for omics data to work with omics dataset we have implemented the `mgcca_bd` function, which allows to work with large number of variables. We will first show the calculations with `mgcca` and later with `mgcca_bd.`
+Unlike the original in-memory implementation, the current version runs its whole
+numerical core in **C++ on HDF5 files** through the
+[`BigDataStatMeth`](https://github.com/isglobal-brge/BigDataStatMeth) API, so a
+single entry point, `mgcca()`, scales from small tables to full-omics tables
+(hundreds of thousands of features) *without ever loading a table completely into
+memory* and without forming any variable-by-variable matrix. The results are
+written to the HDF5 file and can be pulled back into a compact R object for
+plotting with `mgcca_results()` (or `mgcca(..., collect = TRUE)`).
 
-First, we have to install `mgcca` and `BigDataStatMeth` packages, for further information about installation, please see vignette for `mgcca` package.
-
-```{r mgcca.install, echo=TRUE, message=FALSE}
-
-# rm(list=ls())
-#devtools::install_github("isglobal-brge/mgcca")
+```{r load_library}
 library(mgcca)
-
 ```
 
-Load other necessary libraries.
+# A self-contained example
 
-```{r libraries, echo=TRUE, message=FALSE}
+The package ships a small multi-table cardiovascular data set with three tables
+that do **not** share the same individuals -- exactly the situation `mgcca` is
+designed for. Each table has individuals in rows (identified by their row names)
+and variables in columns.
 
-# utility library
-library(R.utils)
+```{r cardio_data}
+data(cardiovascular, package = "mgcca")
 
-# libraries needed by TCGA data
-library(curatedTCGAData)
-library(TCGAutils)
+X <- list(methylation = as.matrix(X1),
+          clinical    = as.matrix(X2),
+          other       = as.matrix(X3))
+X <- lapply(X, function(m) { storage.mode(m) <- "double"; m })
 
-# Libraries needed by mgcca package
-library(MultiAssayExperiment)
-library(RSpectra)
-library(impute)
-
-# Benchmark
-library(microbenchmark)
+# Different number of individuals per table -> missing individuals
+sapply(X, dim)
+length(Reduce(union, lapply(X, rownames)))   # size of the individual union
 ```
 
+## Running mgcca
 
-# Download TCGA data
+`mgcca()` imports the tables into an HDF5 file, scales each variable
+(column-centre and standardise, done out-of-core inside the file), and computes
+the shared components. The tables here are small (few variables relative to
+individuals), so `method = "solve"` is well conditioned; for wide/omics tables
+use `"penalized"` (with a `lambda` per table) or `"geninv"`.
 
-Data used to perform analysis was data referred to assays RNASeq (Normalized) and Methilation from Adrenocortical carcinoma. We can check the available cancer codes and assays in TCGA repositories. Let's choose ACC cancer, and two assays: RNA-seq and Methylation.
+Passing `collect = TRUE` returns an object of class `"mgcca"` (holding `Y`, the
+per-table `corsY`/`pval.cor`, `scores` and `AVE`) ready for the plotting
+helpers. The full results also remain in the HDF5 file.
 
-```{r tcga.data, echo=TRUE, message=FALSE}
+```{r cardio_run}
+h5file <- tempfile(fileext = ".h5")
 
-# Available cancer codes and assays
-curatedTCGAData(diseaseCode = "*", assays = "*", dry.run = TRUE)
-# MultiAssayExperiment created with two assays: RNA-seq and Methylation
-multiassayexperiment <- curatedTCGAData("ACC",c("RNASeq2GeneNorm","Methylation" ), FALSE)
+fit <- mgcca(X, filename = h5file, nfac = 2,
+             method = "solve", scores = TRUE, collect = TRUE)
+
+fit                       # print method: a compact overview
 ```
 
-Now let's check how this MultiAssayExperiment looks like.
+`summary()` adds the variance explained per table and the variables most
+correlated with each shared component:
 
-```{r MultiAssayExperiment, echo=TRUE, message=FALSE}
-
-class(multiassayexperiment)
-multiassayexperiment
-
-# Methylation data
-assay(multiassayexperiment[[1]])[1:5,1:5]
-dim(assay(multiassayexperiment[[1]]))
-
-# RNA-seq data
-assay(multiassayexperiment[[2]])[1:5,1:5]
-dim(assay(multiassayexperiment[[2]]))
-
-# We can see there are some missing values (NA and/or 0)
-table(is.na(assay(multiassayexperiment[[1]])))
-table(is.na(assay(multiassayexperiment[[2]])))
-
+```{r cardio_summary}
+summary(fit, top = 4)
 ```
 
+## Individuals plot
 
-# Data imputation
+`plotIndividuals()` projects the individuals onto the two shared components and
+returns a `ggplot` object you can further style. A grouping factor -- a
+phenotype, a clinical category, a cluster -- can be supplied to colour the
+points.
 
-As observed above, we can impute the missing values using K-Nearest Neighbors method (KNN) from `impute.knn` package implemented in our package with the function `impute`. Only NA's will be imputed by default. However, 0 values can (if desired) be imputed aswell (`impute.zero = TRUE`). Take into account that samples must be columns and features must be rows (this is expected by the `impute.knn` function by default).
+To pick a *meaningful* one, look at which clinical variables actually drive the
+shared components (their correlation with each component):
 
-```{r imputation, echo=TRUE, message=FALSE, warning=FALSE, comment=FALSE, results='hide'}
-
-# Arguments:
-# subset: MultiAssayExperiment
-# method: knn for K-Nearest Neighbors or 
-# k: Number of neighbors to be used in the imputation
-# rowmax: maximum percent missing data allowed in any row (default 50%). For any rows with more than rowmax% missing are imputed using the overall mean per sample.
-# colmax: maximum percent missing data allowed in any column (default 80%). If any column has more than colmax% missing data, the program halts and reports an error.
-# remove.col: To remove columns with more than colmax% missing data.
-# impute.zero: To impute 0 values.
-
-multiassayexperiment.imputed <- impute(multiassayexperiment, method = "knn", 
-                                       k = 10, rowmax = 0.5, colmax = 0.8, 
-                                       remove.col = TRUE, impute.zero = TRUE)
-
+```{r cardio_clin_load}
+round(fit$corsY[["clinical"]], 3)
 ```
 
-# Convert `MultiAssayExperiment` into a list of assays
+Cholesterol (LDL, total cholesterol) loads most on the first component, whereas
+BMI barely does -- so LDL categories will show structure while BMI would not. We
+build LDL clinical categories (NCEP ATP III cut-points) and align them to the
+individuals of the analysis (those absent from the clinical table stay `NA`):
 
-We need to obtain a list of tables/matrices, one for each assay, to be able to run `mgcca`. The resulting matrices will have the rows and columns transposed, i.e. samples in rows and features in columns (because this is expected by the `mgcca` function).
-
-```{r tables_list, echo=TRUE, message=FALSE}
-
-tables_list <- getTables(multiassayexperiment.imputed)
-
-# We assess the class, length, data and dimensions of the list of tables.
-class(tables_list)
-length(tables_list)
-tables_list[[1]][1:5,1:5]
-tables_list[[2]][1:5,1:5]
-dim(tables_list[[1]])
-dim(tables_list[[2]])
-
+```{r cardio_group}
+ldl <- X$clinical[, "LDL"]                        # real LDL values (mg/dL)
+ldl <- ldl[rownames(fit$Y)]                       # align to the individual union
+ldl_group <- cut(ldl, breaks = c(-Inf, 100, 160, Inf),
+                 labels = c("optimal", "borderline", "high"))
+table(ldl_group, useNA = "ifany")
 ```
 
-# Data preprocessing
-
-## Sample names
-
-First, samples names must at least overlap between tables (there can be missing individuals, but not all of them). In TCGA data, samples names are barcodes that contain information about the type of data, batches, etc. Thus, samples names are different from among different assays. Let's obtain the real sample ID's from the same barcodes.
-
-```{r tcga.barcode, echo=TRUE, message=FALSE}
-
-# The sample ID is the first 12 characters from the sample name
-for (assay in 1:length(tables_list)) {
-  rownames(tables_list[[assay]]) <- substr(rownames(tables_list[[assay]]),1,12)
-}
-
-#tums <- TCGAsampleSelect(colnames(accmae), "01")
-
+```{r cardio_plotInds, fig.width=6, fig.height=4.6}
+plotIndividuals(fit, group = ldl_group)
 ```
 
-## Tables containing character numbers
+The 95% confidence ellipses (one per group) make the shift along the first
+component clear -- the *optimal* ellipse sits to the right, the *high* ellipse to
+the left -- even though the individual points overlap heavily.
 
-In our case, methylation data seems to be of character, instead of numeric, and although the imputation can be done with that type of data this will give an error in `mgcca`, because it expects numeric matrices. Thus, let's change this matrix to numeric values.
+Contrast this with BMI, which (as the loadings above anticipated) barely aligns
+with the shared components: colouring by BMI category gives essentially
+concentric ellipses, i.e. no separation.
 
-```{r char.numb, echo=TRUE, message=FALSE}
+```{r cardio_plotInds_bmi, fig.width=6, fig.height=4.6}
+bmi <- X$clinical[, "BMI"][rownames(fit$Y)]
+bmi_group <- cut(bmi, breaks = c(-Inf, 25, 30, Inf),
+                 labels = c("normal", "overweight", "obese"))
+plotIndividuals(fit, group = bmi_group, title = "Individuals by BMI category")
+```
 
-# Check if it is character
-tables_list[[1]][1,1]
-class(tables_list[[1]][1,1])
+The ellipses can be switched off with `ellipse = FALSE`.
 
-# Use our in-house function
+## Variables plot
+
+`plotVariables()` draws, for one table, the correlation of each variable with the
+two shared components as a *correlation circle*. Only the `top` variables (by
+correlation radius) are labelled, so it stays readable for omics-scale tables.
+
+```{r cardio_plotVars, fig.width=5.5, fig.height=5.5}
+plotVariables(fit, table = "clinical", top = 6)
+```
+
+`plotLoadings()` is a complementary view: the signed correlation of the top
+variables with a single component as a bar chart (here it makes the
+cholesterol-vs-glucose split of component 1 explicit).
+
+```{r cardio_loadings, fig.width=6, fig.height=4}
+plotLoadings(fit, table = "clinical", comp = 1, top = 6)
+```
+
+## Variance explained
+
+`plotAVE()` shows how much of each table's variance each shared component
+captures (outer-model AVE); `plotScree()` shows the component eigenvalues.
+
+```{r cardio_ave, fig.width=6, fig.height=4}
+plotAVE(fit)
+plotScree(fit)
+```
+
+## Significant variables
+
+`getSignif()` lists the variables significantly correlated with any component and
+`topVars()` returns the strongest ones.
+
+```{r cardio_signif}
+head(getSignif(fit, pval.cut = 1e-3))
+topVars(fit, axis = 1, topN = 5)
+```
+
+# Saving and reloading results
+
+Every `mgcca()` run writes its results to the HDF5 file, and *together with them*
+a small **provenance manifest** stored as native HDF5 attributes: the method,
+`lambda`, the algebra `route` taken per table, the number of components, the
+table names, the eigenvalues and the package version/date. The manifest is
+attached to the `FINAL_RESULTS` group (run-level facts) and to each
+`FINAL_RESULTS/corsY/<table>` dataset (the per-table `lambda` and `route_dual`),
+so the results file is **self-describing**.
+
+Because of this, a finished analysis can be reopened later from the file alone --
+no need to keep the R session, a saved `.rds`, or even to remember how it was
+run. `mgcca_load()` reads the manifest and the numeric blocks and rebuilds the
+full `"mgcca"` object:
+
+```{r reload}
+# forget the in-memory object; everything needed is on disk
+rm(fit)
+
+fit <- mgcca_load(h5file)          # rebuilt straight from the HDF5 file
+fit
+```
+
+The reconstructed provenance is available on the object's descriptor:
+
+```{r reload_desc}
+desc <- attr(fit, "desc")
+desc$method                        # "solve"
+desc$route                         # "auto"
+desc$route_dual                    # per-table: covariance vs Gram route
+desc$eig_values                    # shared-component eigenvalues
+```
+
+All the plotting and post-analysis helpers work on the reloaded object exactly as
+before:
+
+```{r reload_use, fig.width=6, fig.height=4.6}
+plotIndividuals(fit, group = ldl_group)
+```
+
+If you only need the numeric blocks (no provenance, no `"mgcca"` wrapper), the
+lower-level reader `mgcca_results(h5file)` returns them directly.
+
+# How it scales to omics data
+
+The same call works on omics-scale tables. Two things make this possible:
+
+* **Out-of-core, in HDF5.** Import writes the raw tables to the file; scaling,
+  cross-products, the eigendecomposition and the scores are all computed by
+  `BigDataStatMeth` reading the data in blocks. Nothing forces a whole table into
+  RAM.
+* **Per-table algebra route (`route = "auto"`).** For a table with more variables
+  than individuals (`p > n`, e.g. methylation with hundreds of thousands of CpGs)
+  `mgcca` uses the Gram route (an *n x n* matrix), never the *p x p* covariance
+  matrix, which would be intractable. For `p < n` it uses the covariance route.
+  `route = "cov"` or `"dual"` force one route for every table.
+
+So the very same `mgcca(..., method = "penalized", lambda = ...)` that runs on
+a 100-variable subset also runs, unchanged, on the full methylation table
+(~485k features), completing in seconds without exhausting memory.
+
+# A real omics case study: TCGA adrenocortical carcinoma
+
+Adrenocortical carcinoma (ACC) is a rare, aggressive endocrine cancer. The TCGA
+ACC cohort provides, for 80 patients, two omics layers -- **RNA-seq** gene
+expression and **DNA methylation** -- together with rich clinical annotation
+(tumour stage, survival, treatment, ...). We integrate the two layers with
+`mgcca` and then ask a biologically meaningful question: *do the shared
+components capture clinical structure?*
+
+The code below is shown but **not evaluated** when the vignette is built (it
+downloads several hundred MB and needs `curatedTCGAData`/`TCGAutils`). The
+outputs and figures underneath are the **actual result** of running it on the
+full data -- RNA-seq (20,501 genes) and methylation (485,577 CpGs) for all 80
+patients -- which completes in about 30 seconds. Both tables have `p >> n`, so
+both take the Gram route and no variable-by-variable matrix is ever formed.
+
+## Download, impute and assemble the tables
+
+```{r tcga_prep, eval=FALSE}
+library(curatedTCGAData); library(TCGAutils); library(MultiAssayExperiment)
+
+mae <- curatedTCGAData("ACC", c("RNASeq2GeneNorm", "Methylation"),
+                       dry.run = FALSE, version = "1.1.38")
+mae <- impute(mae, method = "knn", k = 10, rowmax = 0.5, colmax = 0.8,
+              remove.col = TRUE, impute.zero = TRUE)
+
+# individuals x variables, aligned by the 12-char sample ID; methylation -> numeric
+tables_list <- getTables(mae)
+for (a in seq_along(tables_list))
+  rownames(tables_list[[a]]) <- substr(rownames(tables_list[[a]]), 1, 12)
 tables_list <- matrix.chr2num(tables_list, index = 1)
-
-# Confirm it's numeric now
-tables_list[[1]][1,1]
-class(tables_list[[1]][1,1])
-
 ```
 
-# MGCCA
+## Integrate the two layers
 
-Now we can run mgcca! However, due to speed limitations, let's make a subset of data.
+```{r tcga_run, eval=FALSE}
+fit <- mgcca(tables_list, filename = tempfile(fileext = ".h5"), nfac = 2,
+             method = "penalized", lambda = c(0.75, 1),
+             scores = TRUE, route = "auto", collect = TRUE)
 
-```{r subset, echo=TRUE, message=FALSE}
-
-class(tables_list[[1]])
-table_list.subset <- lapply(tables_list, function(x) x[,1:100])
-lapply(table_list.subset, function(x) x[1:5,1:5])
+attr(fit, "desc")$route_dual   # both TRUE: methylation and RNA-seq both p >> n
+summary(fit, top = 4)
 ```
 
-## mgcca for small data
-Run mgcca, select the grouping variable for the plot, and finally plot the result.
-
-```{r mgcca, echo=TRUE, message=FALSE}
-
-# mgcca
-mgcca.result <- mgcca(table_list.subset, method="penalized", lambda=c(0.75,1))
-
-# grouping variable from the original MultiAssayExperiment
-# In this case, as example, the vital status of the patients with ACC cancer.
-group <- factor(multiassayexperiment$vital_status)
-
-#plot
-plotInds(mgcca.result, group=group, pos.leg = "topright")
+The `summary()` output (real result on the full data):
 
 ```
+Generalized Canonical Correlation Analysis (mgcca)
+  tables      : 2  (ACC_RNASeq2GeneNorm-20160128, ACC_Methylation-20160128)
+  individuals : 80
+  components  : 2
+  eigenvalues : 1, 1
+  AVE (outer) : 0.04473, 0.04128
+  scores      : available (per table)
 
-## mgcca_bd for Omics data
+AVE per table (outer model):
+                              comp1  comp2
+ACC_RNASeq2GeneNorm-20160128 0.0847 0.0692
+ACC_Methylation-20160128     0.0430 0.0401
 
-Run `mgcca_bd`, select the grouping variable for the plot, and finally plot the result.
-
-```{r mgcca_bd, echo=TRUE, message=FALSE}
-
-# mgcca
-mgcca.result.bd <- mgcca(table_list.subset, method="penalized", lambda=c(0.75,1))
-
-# grouping variable from the original MultiAssayExperiment
-group <- factor(multiassayexperiment$vital_status)
-
-#plot
-plotInds(mgcca.result.bd, group=group, pos.leg = "topright")
-
+Top 4 variables per component (correlation with Y):
+  [ACC_RNASeq2GeneNorm-20160128]
+    comp1: ARHGDIB (-0.79), TBX3 (+0.74), TNFAIP8L2 (-0.73), FLI1 (-0.73)
+    comp2: STK25 (-0.81), PRCC (-0.80), ARPC2 (-0.79), ZDHHC16 (-0.77)
+  [ACC_Methylation-20160128]
+    comp1: cg14278148 (-0.74), cg12653626 (-0.71), cg05796838 (-0.71), cg27641801 (-0.70)
+    comp2: cg10815272 (-0.74), cg06495763 (+0.72), cg10469906 (-0.70), cg13301931 (-0.70)
 ```
 
-We can observe that plot obtained with `mgcca` and `mgcca_bd` are equal
+## Do the shared components track the disease?
 
+Colouring the individuals by clinical group shows that the integrated axes are
+not arbitrary. Tumour **stage** grades along the components (early-stage ellipse
+up-left, stage IV down-right), and **vital status** separates survivors from
+deceased patients.
 
-# Mgcca for Genomic Ranges
+```{r tcga_run_plots, eval=FALSE}
+stage <- factor(mae$pathologic_stage)
+vital <- factor(ifelse(mae$vital_status == "1", "deceased", "alive"))
+plotIndividuals(fit, group = stage)   # figure 1
+plotIndividuals(fit, group = vital)   # figure 2
+```
 
-You can also make a `mgcca` for a specific genomic coordinate that you are interested in. To do so, we will first subset the features from each assay (RNA-seq and methylation) that belong to that particular genomic coordinate.
-AS an example, we will use the coordinates for two genes:
-IGF2 --> a prototypical tumor-progenitor gene, which is the most commonly over-expressed gene in human adrenocortical carcinoma.
-MEN1 --> A tumor suppressor gene located at 11q13, also related to this cancer.
-TP53 --> The most common tumor supressor gene in all cancers.
-We will use both gene coordinates + 2kb up and downstream (in order to obtain CpGs next to it).
+```{r tcga_fig_inds, echo=FALSE, out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("figures/tcga_stage.png",
+                          "figures/tcga_individuals.png"))
+```
 
-NOTE 1: we need at least 2 genes, because (I think) imputation cannot be done if there is only 1 row (gene).
-NOTE 2: The first thing to do is to find the genes names (and cpgs) belonging to that particular genomic coordinates, but in this case we already know their names. That means that genomic coordinates can be given without knowing the actual genes, because if you know the actual genes you just create a list with its names (see below).
+`mgcca_associate()` makes this quantitative: it regresses each shared component
+on a phenotype and reports the variance explained and its p-value.
 
-```{r genomic.ranges}
+```{r tcga_assoc, eval=FALSE}
+mgcca_associate(fit, list(
+  stage  = factor(mae$pathologic_stage),
+  vital  = factor(mae$vital_status),
+  gender = factor(mae$gender)))
+```
 
+```
+  phenotype component     R2       p   n   p.adj
+1     stage         1 0.113   0.030  78   0.045
+2     stage         2 0.154 5.9e-03  78   0.018
+3     vital         1 0.064   0.023  80   0.045
+4     vital         2 0.287 3.1e-07  80   1.9e-06
+5    gender         1 0.031   0.115  80   0.138
+6    gender         2 0.003   0.630  80   0.630
+```
+
+Both components are significantly associated with **tumour stage**, and the
+second component is strongly associated with **survival** (p = 3e-07), while
+**gender** is not -- the shared signal reflects disease biology, not a technical
+or demographic artefact. (`mgcca_permtest()` similarly tests whether the
+components themselves are significant against a permuted null.)
+
+## What drives the components
+
+The methylation correlation circle shows the full cloud of 485k CpGs with the
+top-correlated ones labelled; `plotLoadings()` lists the strongest CpGs for the
+first component; and `plotAVE()` shows how much of each layer each component
+captures.
+
+```{r tcga_run_vars, eval=FALSE}
+plotVariables(fit, table = "ACC_Methylation-20160128", top = 15)
+plotLoadings(fit,  table = "ACC_Methylation-20160128", comp = 1, top = 15)
+plotAVE(fit)
+```
+
+```{r tcga_fig_vars, echo=FALSE, out.width="49%", fig.show="hold"}
+knitr::include_graphics(c("figures/tcga_variables.png",
+                          "figures/tcga_loadings.png"))
+```
+
+```{r tcga_fig_ave, echo=FALSE, out.width="70%", fig.align="center"}
+knitr::include_graphics("figures/tcga_ave.png")
+```
+
+If you only need the results on disk (no in-memory object), drop
+`collect = TRUE` and read them back later with `mgcca_results(h5file)`.
+
+## Subsetting by genomic ranges
+
+You can restrict the analysis to features falling in a genomic region. As an
+example, features around the *MEN1* locus (a tumour-suppressor gene at 11q13
+related to this cancer):
+
+```{r tcga_ranges, eval=FALSE}
 library(TxDb.Hsapiens.UCSC.hg19.knownGene)
 library(org.Hs.eg.db)
 
-### 1) Save the genomic coordinates that we are interested in
-# MEN1 --> chr11: 64570986-64578766 +-2kb --> 64568986-64580766
+# MEN1 +- 2kb
+chr.coords <- GRanges("11:64550986-64578766")
 
-chr.coords <- GRanges("11:64550986-64578766") 
+# Annotate RNA-seq with ranges; methylation already carries CpG coordinates
+mae.annotated <- TCGAutils::symbolsToRanges(mae)
+mae.annotated[[3]] <- NULL                       # drop the unranged part
 
-### 2) Annotate each assay independently to obtain the genomic coordinates for all features, in case it is not already done
+mae.subset <- genCoords(multiassayexperiment = mae.annotated,
+                        gen.coords = chr.coords,
+                        meth.index = 1, col.name = "Genomic_Coordinate")
 
-### 2.1) Methylation annotation
-# We already have the genomic coordinates for each CpGs in the rowData dataframe
-rowData(multiassayexperiment[[1]])
+mae.subset.imputed <- impute(mae.subset, method = "knn", k = 10,
+                             rowmax = 0.5, colmax = 0.8,
+                             remove.col = TRUE, impute.zero = TRUE)
 
-### 2.2) RNA-seq annotation
-# It will split the assay in two: ranged RangedSummarizedExperiment containing the features with existing genomic coordinates, and unranged SummarizedExperiment, not containing them
-mae.annotated <- TCGAutils::symbolsToRanges(multiassayexperiment)
+sub_tables <- getTables(mae.subset.imputed)
+for (a in seq_along(sub_tables))
+  rownames(sub_tables[[a]]) <- substr(rownames(sub_tables[[a]]), 1, 12)
+sub_tables <- matrix.chr2num(sub_tables, index = 1)
 
-### 3) Remove the non-used assays (unranged SummarizedExperiment)
-
-mae.annotated[[3]] <- NULL
-
-### 4) Obtain a subset of features (CpGs and genes) that fall within the interested genomic coordinates
-
-mae.subset <- genCoords(multiassayexperiment = mae.annotated , gen.coords = chr.coords,
-          meth.index = 1, col.name = "Genomic_Coordinate")
-
-# mae.subset <- genCoords(multiassayexperiment = mae.annotated , gen.coords = chr.coords,
-#           type.omics = c("methylation","rnaseq"), col.name = "Genomic_Coordinate")
-
-
+fit.region <- mgcca(sub_tables, filename = tempfile(fileext = ".h5"),
+                        nfac = 2, method = "penalized", lambda = c(0.75, 1),
+                        scores = TRUE, collect = TRUE)
+plotIndividuals(fit.region, group = factor(mae$vital_status))
 ```
-
-Now we can make the `mgcca` with the MultiAssayExperiment subset by genomic coordinates
-
-```{r gen.coords.mgcca}
-
-### 1) Imputation
-
-mae.subset.imputed <- impute(mae.subset, method = "knn", k = 10, 
-                                       rowmax = 0.5, colmax = 0.8, remove.col = TRUE, impute.zero = TRUE)
-
-### 2) List of Matrices
-
-tables_list.subset <- getTables(mae.subset.imputed)
-
-### 3) Reassign sample names
-
-for (assay in 1:length(tables_list.subset)) {
-  rownames(tables_list.subset[[assay]]) <- substr(rownames(tables_list.subset[[assay]]),1,12)
-}
-
-### 4) Convert Character matrix (methylation) to Numeric matrix
-
-tables_list.subset <- matrix.chr2num(tables_list.subset, index = 1)
-```
-
-
-## Mgcca for Genomic Ranges in small matrices
-
-```{r gen.coords.mgcca_small}
-### 5) mgcca
-
-# mgcca
-mgcca.result <- mgcca(tables_list.subset, method="penalized", lambda=c(0.75,1))
-
-# grouping variable from the original MultiAssayExperiment
-# In this case, as example, the vital status of the patients with ACC cancer.
-group <- factor(multiassayexperiment$vital_status)
-# miRNA cluster
-#group <- factor(multiassayexperiment$miRNA.cluster)
-
-#plot
-plotInds(mgcca.result, group=group, pos.leg = "bottomleft")
-
-```
-
-
-## Mgcca for Genomic Ranges and Omics data
-
-```{r gen.coords.mgcca_omics}
-### 5) mgcca
-
-# mgcca
-mgcca.result_bd <- mgcca_bd(tables_list.subset, method="penalized", lambda=c(0.75,1))
-
-# grouping variable from the original MultiAssayExperiment
-# In this case, as example, the vital status of the patients with ACC cancer.
-group <- factor(multiassayexperiment$vital_status)
-# miRNA cluster
-#group <- factor(multiassayexperiment$miRNA.cluster)
-
-#plot
-plotInds(mgcca.result_bd, group=group, pos.leg = "bottomleft")
-
-```
-
-
-
-# Differences between mgcca for small matrix and omics data
-
-
-The main difference between `mgcca` and `mgcca_bd` is that `mgcca_bd` allows you to work with more variables and the execution time is lower in `mgcca_bd` than `mgcca`, here, we show an execution time example
-
-```{r mgcca_bench, echo=TRUE, message=FALSE}
-
-table_list.subset.100 <- lapply(tables_list, function(x) x[,1:100])
-table_list.subset.500 <- lapply(tables_list, function(x) x[,1:500])
-
-res <- microbenchmark( 
-  mgcca(table_list.subset.100, method="penalized", lambda=c(0.75,1)),
-  mgcca_bd(table_list.subset.100, method="penalized", lambda=c(0.75,1)),
-  mgcca(table_list.subset.500, method="penalized", lambda=c(0.75,1)),
-  mgcca_bd(table_list.subset.500, method="penalized", lambda=c(0.75,1)),
-  times = 10, unit = "s")
-
-resdata <- as.data.frame(summary(res)[, c(1:7)])
-
-# we simplify the names to better understand the microbenchmark results
-resdata[,1] <- c("mgcca_100", "mgcca_bd_100","mgcca_500", "mgcca_bd_500" )
-
-print(resdata, digits = 3)
-
-```
-
-So note that execution time with `mgcca_bd` is smaller than execution time with `mgcca`
-
-
 
 # Session information
 
-```{r sesinfo }
+```{r sesinfo}
 sessionInfo()
 ```

@@ -1,7 +1,12 @@
-#' Formats a character matrix into a numeric matrix (used for the methylation assay)
-#' @param index indicates in which position from the list is the matrix
+#' Convert a character table in a list of tables to numeric
+#'
+#' @description Some assays (e.g. methylation from TCGA) are stored as character
+#'   matrices; \code{mgcca} needs numeric tables. This converts the table at
+#'   position \code{index} in a list of tables to numeric, preserving dimnames.
+#' @param listMAE a list of tables (e.g. from \code{\link{getTables}}).
+#' @param index integer position of the table to convert.
+#' @return The same list with table \code{index} coerced to a numeric matrix.
 #' @export
-
 matrix.chr2num <- function(listMAE, index) {
 
   # Check that the input is of ListMAE class

@@ -2,13 +2,20 @@
 % Please edit documentation in R/format.R
 \name{matrix.chr2num}
 \alias{matrix.chr2num}
-\title{Formats a character matrix into a numeric matrix (used for the methylation assay)}
+\title{Convert a character table in a list of tables to numeric}
 \usage{
 matrix.chr2num(listMAE, index)
 }
 \arguments{
-\item{index}{indicates in which position from the list is the matrix}
+\item{listMAE}{a list of tables (e.g. from \code{\link{getTables}}).}
+
+\item{index}{integer position of the table to convert.}
+}
+\value{
+The same list with table \code{index} coerced to a numeric matrix.
 }
 \description{
-Formats a character matrix into a numeric matrix (used for the methylation assay)
+Some assays (e.g. methylation from TCGA) are stored as character
+  matrices; \code{mgcca} needs numeric tables. This converts the table at
+  position \code{index} in a list of tables to numeric, preserving dimnames.
 }

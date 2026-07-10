@@ -2,62 +2,99 @@
 % Please edit documentation in R/mgcca.R
 \name{mgcca}
 \alias{mgcca}
-\title{Generalized canonical correlation with missing individuals}
+\title{Generalized Canonical Correlation Analysis with missing individuals}
 \usage{
 mgcca(
   x,
+  filename,
+  group = "MGCCA_IN",
+  datasets = NULL,
   nfac = 2,
   scale = TRUE,
-  pval = TRUE,
+  method = "penalized",
+  lambda = NULL,
   scores = FALSE,
-  method = "solve",
-  lambda,
-  mc.cores = 1,
-  ...
+  route = c("auto", "cov", "dual"),
+  threads = NULL,
+  overwrite = TRUE,
+  collect = TRUE
 )
 }
 \arguments{
-\item{x}{list of matrices. Each matrix should have the ids in the
-rownames. Missing is not allowed (see details)}
+\item{x}{Input data: an HDF5 file path (data already under \code{group}), a
+\code{MultiAssayExperiment}, an \code{ExpressionSet}/
+\code{SummarizedExperiment}, or a named \code{list} of matrices
+(individuals x variables, rownames = individual IDs).}
 
-\item{nfac}{...}
+\item{filename}{Target HDF5 file (ignored when \code{x} is an HDF5 path).}
 
-\item{scale}{...}
+\item{group}{Input HDF5 group. Default \code{"MGCCA_IN"}.}
 
-\item{pval}{should p-values of correlation between variables and shared canonical variates be computed? Default is TRUE.}
+\item{datasets}{Optional dataset names (subset/order).}
 
-\item{scores}{should canonical variables be computed for each table?
-Default is FALSE. See details}
+\item{nfac}{Number of shared components. Default 2.}
 
-\item{method}{...}
+\item{scale}{If TRUE (default), column-center+scale each table before
+analysis. Scaling is performed \emph{inside} the HDF5 file (out-of-core,
+base-R \code{scale()} semantics) after a raw, untransformed import, so it
+applies uniformly to every input type -- including inputs that are already
+an HDF5 file -- and never loads a full table into RAM.}
 
-\item{lambda}{...}
+\item{method}{Inversion method: \code{"solve"} (SPD Cholesky),
+\code{"penalized"} (requires \code{lambda}), or \code{"geninv"}/\code{"ginv"}
+(Moore-Penrose pseudoinverse).}
 
-\item{mc.cores}{...}
+\item{lambda}{Numeric vector (length = number of tables) for
+\code{method = "penalized"}.}
+
+\item{scores}{If TRUE, also compute per-table weights and scores.}
+
+\item{route}{Per-table algebra route: \code{"auto"} (default) picks per table
+by \code{min(n, p)} (covariance \code{X'X} when \code{p < n}, Gram
+\code{XX'} when \code{p >= n}); \code{"cov"} or \code{"dual"} force one route
+for all tables. The Gram/dual route is the one that scales to \code{p >> n}
+(e.g. full methylation) without ever forming a \code{p x p} matrix.}
+
+\item{threads}{Optional thread count.}
+
+\item{overwrite}{If TRUE (default), overwrite the file/datasets on import.}
+
+\item{collect}{If TRUE (default), read the results back from HDF5 and return an
+in-memory object of class \code{"mgcca"} (via \code{\link{mgcca_results}})
+ready for \code{\link{plotIndividuals}} / \code{\link{plotVariables}} /
+\code{\link{getSignif}}; the HDF5 descriptor is kept on its \code{"desc"}
+attribute. With \code{collect = FALSE} the lightweight descriptor list is
+returned instead (results still live in the HDF5 file).}
 }
 \value{
-a list consisting of
-  \item{Y}{canonical components for the shared space}
-  \item{corsY}{correlation between variables and shared canonical components}
-  \item{scores}{canonical componets for each table}
-  \item{p.values}{p-values of correlation between variables and shared canonical components}
-  \item{AVE}{indicators of model quality based on the Average Variance Explained (AVE): AVE for each table, AVE_outer (average accross tables), AVE_inner(for the shared component).}
+With \code{collect = TRUE} (default), an object of class
+  \code{"mgcca"} (see \code{\link{mgcca_results}}); its HDF5 descriptor is on
+  \code{attr(., "desc")}. With \code{collect = FALSE}, the descriptor list
+  (\code{filename}, \code{datasets}, \code{nfac}, \code{m}, \code{eig_values},
+  \code{route}, ...). Results always live in the file under
+  \code{FINAL_RESULTS}.
 }
 \description{
-Generalized canonical correlation with missing individuals
-}
-\details{
-eigen with Rfast hd.eigen select number of components speed up process (RSpectra?)
-rownames matrices ... si hay distintos ordena - si no, no.
-missings ...  dos opciones#'
-scores .. si queremos correlation with each table!
-inversa ...
-"solve" para n>>p (pero lento) (solve function)
-"penalized" penalized adding lambda*I (rfunctions cgls). Requires lambda
-"geninv" n<p generalized inverse (rfunctions geninv)
-"ginv" generalized inverse (MASS ginv)
+High-level, one-call entry point for the C++/HDF5 MGCCA pipeline:
+  import any supported input into HDF5, then run the single-call orchestrator
+  \code{\link{mgcca_rcpp}}. Results are written to the HDF5 file under
+  \code{FINAL_RESULTS} (\code{Y}, \code{corsY}, \code{pval}, \code{AVE}, and
+  \code{scores} if requested); with \code{collect = TRUE} they are also
+  returned in memory as an object of class \code{"mgcca"} ready for
+  \code{\link{plotIndividuals}} / \code{\link{plotVariables}}.
 }
 \examples{
-see vignette
-
+\dontrun{
+data(cardiovascular)
+X <- list(methylation = as.matrix(X1),
+          clinical    = as.matrix(X2),
+          other       = as.matrix(X3))
+fit <- mgcca(X, filename = tempfile(fileext = ".h5"),
+             method = "solve", scores = TRUE, collect = TRUE)
+plotIndividuals(fit)
+}
+}
+\seealso{
+\code{\link{mgcca_results}}, \code{\link{plotIndividuals}},
+  \code{\link{mgcca_import_hdf5}}, \code{\link{mgcca_rcpp}}
 }

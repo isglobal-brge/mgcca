@@ -1,25 +1,43 @@
 Package: mgcca
 Type: Package
 Title: Generalized Canonical Correlation Analysis having missing individuals
-Version: 0.9.9
-Date: 2018-09-03
-Authors@R: c( person("Dolors", "Pelegri-Siso", "dolors.pelegri@isglobal.org", role = c("aut", "cre")),
-              person("Isaac", "Subirana",  role = c("aut"))
-              person("Juan R.", "Gonzalez", "juanr.gonzalez@isglobal.org", role = c("aut")))
-Depends: 
-    BiocStyle,
-    MASS,
-    parallel,
-    RSpectra,
-    made4,
-    BigDataStatMeth,
-    R (>= 3.5.0)
-Imports: 
-Description: 
+Version: 1.0.0
+Date: 2026-07-09
+Authors@R: 
+  c(  person( given = "Dolors", 
+              family = "Pelegri-Siso", 
+              email = "dolors.pelegri@isglobal.org", 
+              role = c("aut", "cre"), 
+              comment = c(ORCID = "0000-0002-5993-3003")),
+      person( given = "Isaac", 
+              family = "Subirana",
+              role = c("aut")),
+      person( given = "Juan R.", 
+              family = "Gonzalez", 
+              email = "juanr.gonzalez@isglobal.org", 
+              role = c("aut"), 
+              comment = c(ORCID = "0000-0003-3267-2146"))
+    )
+Description: Implements Generalized Canonical Correlation Analysis (GCCA)
+    with missing values for multi-block omics integration (van de Velden
+    and Takane, 2012). The package operates directly on HDF5 matrices via
+    the BigDataStatMeth C++ API to scale computations; R functions are thin
+    wrappers around the C++ core.
+Depends: BiocStyle, BigDataStatMeth,  MASS, parallel, RSpectra, made4, 
+    MultiAssayExperiment, R (>= 3.6.0), GenomeInfoDb
+Imports: rlang (>= 1.1.0), Rcpp (>= 1.0.6), RcppEigen (>= 0.3.2.1.1),
+    ggplot2 (>= 3.4.0), utils
+LinkingTo: Rcpp, RcppEigen, Rhdf5lib, BigDataStatMeth, BH
+SystemRequirements: GNU make, C++17
 License: MIT + file LICENSE
-URL: http://isglobal.brge.org
+URL: https://isglobal-brge.github.io/mgcca/,
+    https://github.com/isglobal-brge/mgcca,
+    http://brge.isglobal.org
+BugReports: https://github.com/isglobal-brge/mgcca/issues
 VignetteBuilder: knitr
-Suggests: BiocStyle, knitr, rmarkdown
+Suggests: BiocStyle, knitr, rmarkdown, testthat (>= 3.0.0),
+    SummarizedExperiment
+Config/testthat/edition: 3
 LazyData: TRUE
 Encoding: UTF-8
-RoxygenNote: 7.1.1
+RoxygenNote: 7.3.3
