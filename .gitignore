@@ -35,3 +35,13 @@
 ._*
 *.so
 *.so
+*.old
+*.so
+*.o
+*.hdf5
+
+# large input data (not for git)
+tests/data/bd/
+
+# generated pkgdown site (build locally or via CI, do not commit)
+/docs/
