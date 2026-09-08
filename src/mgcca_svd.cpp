@@ -1,12 +1,16 @@
 // mgcca_svd_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_svd (dual route:
-// per-table projector M_j from the thin SVD of X_j, no p x p). See mgcca_phases.hpp.
+// per-table projector M_j from the thin SVD of X_j, no p x p). See mgcca_phases.h.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA dual SVD stage: M_j = U diag(w) U' from SVD(X_j)
+//' @return A list with the stage descriptor (\code{filename}, \code{tmp_group},
+//'   \code{datasets}, \code{inv_method}, \code{svd_method}), or \code{NULL} on
+//'   error. The per-table dual projectors are written into \code{tmp_group} of
+//'   the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_svd_rcpp(std::string filename, std::string tmp_group,

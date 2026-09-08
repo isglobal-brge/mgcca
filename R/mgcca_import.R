@@ -31,6 +31,24 @@
 #' @return A descriptor \code{list} with elements \code{filename}, \code{group}
 #'   and \code{datasets} (the dataset names written/used), for downstream mgcca.
 #' @seealso \code{\link{getTables}}
+#' @examples
+#' data(cardiovascular)
+#' ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:100]
+#' num <- function(d, cols = seq_len(ncol(d))) {
+#'     m <- as.matrix(d[rownames(d) %in% ids, cols, drop = FALSE])
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = num(X1, 1:10), clinical = num(X2), other = num(X3))
+#'
+#' h5 <- tempfile(fileext = ".h5")
+#' desc <- mgcca_import_hdf5(X, filename = h5, overwriteFile = TRUE)
+#' desc$group
+#' desc$datasets
+#'
+#' ## the descriptor is what the rest of the HDF5 pipeline consumes
+#' file.exists(desc$filename)
+#' unlink(h5)
 #' @export
 mgcca_import_hdf5 <- function(x, filename, group = "MGCCA_IN", datasets = NULL,
                               overwriteDataset = FALSE, overwriteFile = FALSE) {

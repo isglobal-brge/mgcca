@@ -13,6 +13,12 @@ mgcca_XKX_rcpp(
   threads = NULL
 )
 }
+\value{
+A list with the stage descriptor (\code{filename}, \code{tmp_group},
+  \code{datasets}, \code{inv_method}), or \code{NULL} on error. The results
+  themselves (per-table \code{Mgram}, its inverse and \code{Mi}) are written
+  into \code{tmp_group} of the HDF5 file.
+}
 \description{
 MGCCA XKX stage (Mgram=X'X, inverse, Mi=X xkx X') over HDF5
 }

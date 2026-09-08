@@ -1,12 +1,15 @@
 // mgcca_cor_ave_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_cor_ave.
-// See src/mgcca_phases.hpp for the implementation.
+// See src/mgcca_phases.h for the implementation.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA corsY / p-values / AVE stage over HDF5
+//' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+//'   error. The results (\code{corsY}, \code{pval}, \code{AVE}) are written into
+//'   \code{final_group} of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_cor_ave_rcpp(std::string filename, std::string tmp_group,

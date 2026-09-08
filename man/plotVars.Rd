@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotVars.R
 \name{plotVars}
 \alias{plotVars}
-\title{Plot variables correlations with shared canonical components}
+\title{Base-R correlation plots of the variables, one panel per table}
 \usage{
 plotVars(
   x,
@@ -22,7 +22,74 @@ plotVars(
 }
 \arguments{
 \item{x}{an object of class 'mgcca'}
+
+\item{var}{character vector of variable names to highlight in every panel.
+Default \code{NA}, i.e. highlight nothing.}
+
+\item{axes}{the two components to plot. Default \code{1:2}.}
+
+\item{var.col}{colour(s) for the highlighted variables: either a single
+colour or one per element of \code{var}. Default \code{"red"}.}
+
+\item{var.lab}{logical; write the names of the highlighted variables next to
+their points. Default \code{FALSE}.}
+
+\item{bg.var.col}{colour(s) for the remaining ("background") variables:
+either a single colour or one per selected table. Default \code{"gray"}.}
+
+\item{nlab}{number of the most extreme variables that
+\code{made4::plotgenes} labels in each panel. Default 0.}
+
+\item{df}{tables to plot: a vector of positions in \code{x$corsY} or of table
+names. The default \code{NA} means all tables.}
+
+\item{layout}{an explicit matrix passed to \code{\link[graphics]{layout}}. By
+default (\code{NA}) a layout is chosen from the number of tables.}
+
+\item{tit}{panel title. Default \code{""}.}
+
+\item{tit.pos}{title line position, as \code{line} in
+\code{\link[graphics]{title}}. Default 0.}
+
+\item{tit.cex}{title character expansion. Default 1.}
+
+\item{...}{further arguments passed to \code{made4::plotgenes}.}
+}
+\value{
+No return value; called for the plots it draws on the current
+  graphics device. When some names in \code{var} match no variable in any
+  table, a note and a summary table are printed to the console.
 }
 \description{
-Plot variables correlations with shared canonical components
+Lays out one panel per selected table and, in each, plots the
+  correlation of that table's variables with two shared canonical components
+  (via \code{made4::plotgenes}). Variables named in \code{var} are
+  highlighted, which makes it easy to follow a handful of variables of
+  interest across tables. This is the original base-graphics plot;
+  \code{\link{plotVariables}} is the modern per-table replacement and returns
+  a \code{ggplot} object.
+
+  Requires the \pkg{made4} package (Suggests).
+}
+\examples{
+if (requireNamespace("made4", quietly = TRUE)) {
+  data(cardiovascular)
+  u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+  sel <- u[1:150]
+  mk  <- function(d, cols = NULL) {
+      m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+      if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+      storage.mode(m) <- "double"
+      m
+  }
+  X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+  fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+  ## one table, highlighting two clinical variables
+  plotVars(fit, df = 2, var = c("HDL", "Gluc"),
+           var.col = c("red", "blue"), var.lab = TRUE)
+}
+}
+\seealso{
+\code{\link{plotVariables}}, \code{\link{plotInds}}
 }

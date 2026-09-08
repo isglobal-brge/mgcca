@@ -26,6 +26,22 @@ For a chosen table and shared component, shows the variables most
   correlation, coloured by sign). Complements the correlation circle of
   \code{\link{plotVariables}} and scales to omics tables via \code{top}.
 }
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+plotLoadings(fit, table = "methylation", comp = 1, top = 10)
+plotLoadings(fit, table = "clinical", comp = 2)
+}
 \seealso{
 \code{\link{plotVariables}}, \code{\link{getSignif}}
 }

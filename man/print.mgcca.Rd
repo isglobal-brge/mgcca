@@ -12,8 +12,28 @@
 \item{...}{ignored.}
 }
 \value{
-\code{x}, invisibly.
+Called for its side effect (the overview is written to the console).
+  Returns \code{x} invisibly.
 }
 \description{
-Print an mgcca object
+One-screen overview of the fit. The \code{spectral gap} line is
+  the external gap \eqn{\mu_L - \mu_{L+1}} of the mgcca operator, relative to
+  \eqn{\mu_L}: it says whether the leading \eqn{L}-dimensional subspace is
+  numerically identified at all. A gap at machine zero is flagged
+  \code{NOT IDENTIFIED} -- the solver converged, but the directions it
+  returned are arbitrary (see \code{\link{mgcca}}).
+}
+\examples{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:150]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = num(X1, 1:20), clinical = num(X2), other = num(X3))
+
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+             scores = TRUE)
+print(fit)
 }

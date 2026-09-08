@@ -15,6 +15,10 @@ mgcca_write_attrs_rcpp(filename, group, dataset, attrs)
 
 \item{attrs}{Named list of attribute values.}
 }
+\value{
+Invisibly \code{NULL}; called for the side effect of writing the
+  attributes into the HDF5 file.
+}
 \description{
 Writes each named element of \code{attrs} as an HDF5 attribute. When
 \code{dataset} is the empty string the attributes are attached to the group

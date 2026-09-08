@@ -6,6 +6,12 @@
 \usage{
 mgcca_getK_rcpp(filename, in_group, datasets, out_group = "MGCCA_TMP")
 }
+\value{
+A list with the stage descriptor (\code{filename}, \code{out_group},
+  \code{datasets}, \code{m}, \code{rn}), or \code{NULL} on error. The
+  union-padded tables and their indicator diagonals are written into
+  \code{out_group} of the HDF5 file.
+}
 \description{
 MGCCA getK stage (build padded X and indicator diagonal K) over HDF5
 }

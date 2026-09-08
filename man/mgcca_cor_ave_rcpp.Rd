@@ -12,6 +12,11 @@ mgcca_cor_ave_rcpp(
   final_group = "FINAL_RESULTS"
 )
 }
+\value{
+A list with the stage descriptor (\code{filename}), or \code{NULL} on
+  error. The results (\code{corsY}, \code{pval}, \code{AVE}) are written into
+  \code{final_group} of the HDF5 file.
+}
 \description{
 MGCCA corsY / p-values / AVE stage over HDF5
 }

@@ -12,11 +12,27 @@
 \item{...}{passed to \code{\link{plotIndividuals}}.}
 }
 \value{
-A \code{ggplot} object.
+A \code{ggplot} object: the individuals of \code{x} on two shared
+  components. Drawn when printed.
 }
 \description{
 Default plot for an \code{mgcca} object: the individuals on the
   two shared components. A thin wrapper around \code{\link{plotIndividuals}};
   all its arguments (\code{group}, \code{comps}, \code{ellipse}, ...) are
   forwarded.
+}
+\examples{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:150]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = num(X1, 1:20), clinical = num(X2), other = num(X3))
+
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+             scores = TRUE)
+p <- plot(fit)
+class(p)
 }

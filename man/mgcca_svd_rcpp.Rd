@@ -14,6 +14,12 @@ mgcca_svd_rcpp(
   threads = NULL
 )
 }
+\value{
+A list with the stage descriptor (\code{filename}, \code{tmp_group},
+  \code{datasets}, \code{inv_method}, \code{svd_method}), or \code{NULL} on
+  error. The per-table dual projectors are written into \code{tmp_group} of
+  the HDF5 file.
+}
 \description{
 MGCCA dual SVD stage: M_j = U diag(w) U' from SVD(X_j)
 }

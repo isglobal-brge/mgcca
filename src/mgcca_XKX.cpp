@@ -1,12 +1,16 @@
 // mgcca_XKX_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_XKX.
-// See src/mgcca_phases.hpp for the implementation.
+// See src/mgcca_phases.h for the implementation.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA XKX stage (Mgram=X'X, inverse, Mi=X xkx X') over HDF5
+//' @return A list with the stage descriptor (\code{filename}, \code{tmp_group},
+//'   \code{datasets}, \code{inv_method}), or \code{NULL} on error. The results
+//'   themselves (per-table \code{Mgram}, its inverse and \code{Mi}) are written
+//'   into \code{tmp_group} of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_XKX_rcpp(std::string filename, std::string tmp_group,

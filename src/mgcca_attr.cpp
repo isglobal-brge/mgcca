@@ -2,13 +2,13 @@
 // dataset or a group, used to persist and reload the mgcca provenance manifest.
 //
 // The heavy lifting lives in the generic, provider-neutral layer
-// (hdf5Attributes.hpp) and the mgccaDataset subclass; here we only resolve the
+// (hdf5Attributes.h) and the mgccaDataset subclass; here we only resolve the
 // target object (dataset vs group) and marshal the named R list.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "hdf5Attributes.hpp"
-#include "mgccaDataset.hpp"
+#include "hdf5Attributes.h"
+#include "mgccaDataset.h"
 
 using namespace Rcpp;
 
@@ -24,6 +24,8 @@ using namespace Rcpp;
 //' @param group Group path (target group, or the parent group of the dataset).
 //' @param dataset Dataset name, or "" to target the group itself.
 //' @param attrs Named list of attribute values.
+//' @return Invisibly \code{NULL}; called for the side effect of writing the
+//'   attributes into the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 void mgcca_write_attrs_rcpp(std::string filename, std::string group,

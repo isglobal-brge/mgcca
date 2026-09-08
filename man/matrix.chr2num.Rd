@@ -12,10 +12,35 @@ matrix.chr2num(listMAE, index)
 \item{index}{integer position of the table to convert.}
 }
 \value{
-The same list with table \code{index} coerced to a numeric matrix.
+The input list of tables (still of class \code{"ListMAE"}) with the
+  table at position \code{index} replaced by a numeric matrix of the same
+  dimensions, row names and column names. All other tables are returned
+  unchanged.
 }
 \description{
 Some assays (e.g. methylation from TCGA) are stored as character
   matrices; \code{mgcca} needs numeric tables. This converts the table at
   position \code{index} in a list of tables to numeric, preserving dimnames.
+}
+\examples{
+if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
+  data(cardiovascular)
+  sel <- rownames(X2)[1:20]
+  ## two assays, features in rows, individuals in columns
+  a1 <- t(as.matrix(X1[rownames(X1) \%in\% sel, 1:8, drop = FALSE]))
+  a2 <- t(as.matrix(X2[rownames(X2) \%in\% sel, , drop = FALSE]))
+  ## a character assay, as methylation downloaded from TCGA often is
+  storage.mode(a1) <- "character"
+  mae <- MultiAssayExperiment::MultiAssayExperiment(
+      MultiAssayExperiment::ExperimentList(
+          list(methylation = a1, clinical = a2)))
+
+  tabs <- getTables(mae)
+  class(tabs[[1]][1, 1])          # "character"
+  tabs <- matrix.chr2num(tabs, 1)
+  class(tabs[[1]][1, 1])          # "numeric"
+}
+}
+\seealso{
+\code{\link{getTables}}
 }

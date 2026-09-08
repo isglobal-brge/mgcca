@@ -1,18 +1,40 @@
 #' Splits a MultiAssayExperiment in a list of tables
 #'
+#' @description Turns the assays of a \code{MultiAssayExperiment} into the list
+#'   of tables \code{\link{mgcca}} expects. Assays are stored with features in
+#'   rows and individuals in columns, so each one is transposed on the way out:
+#'   the tables returned have individuals in rows and variables in columns.
+#'
 #' @param multiassayexperiment MultiAssayExperiment
-#' @return List of tables
+#' @return A list of matrices, one per assay, named after the assays and each
+#'   transposed to individuals-by-variables. The list carries class
+#'   \code{"ListMAE"}, which \code{\link{matrix.chr2num}} requires.
+#' @seealso \code{\link{matrix.chr2num}}, \code{\link{mgcca}}
+#' @examples
+#' if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
+#'   data(cardiovascular)
+#'   sel <- rownames(X2)[1:20]
+#'   a1 <- t(as.matrix(X1[rownames(X1) %in% sel, 1:8, drop = FALSE]))
+#'   a2 <- t(as.matrix(X2[rownames(X2) %in% sel, , drop = FALSE]))
+#'   mae <- MultiAssayExperiment::MultiAssayExperiment(
+#'       MultiAssayExperiment::ExperimentList(
+#'           list(methylation = a1, clinical = a2)))
+#'
+#'   tabs <- getTables(mae)
+#'   names(tabs)
+#'   vapply(tabs, dim, integer(2))    # individuals x variables
+#' }
 #' @importFrom SummarizedExperiment assays
 #' @export
 getTables <- function(multiassayexperiment){
 
   # Check that the input is a MultiAssayExperiment
-  if (!class(multiassayexperiment) == "MultiAssayExperiment")
+  if (!inherits(multiassayexperiment, "MultiAssayExperiment"))
     stop("Input must be a 'MultiAssayExperiment' object \n")
 
-  tables.list = list()
+  tables.list <- list()
 
-  for (assay in 1:length(multiassayexperiment)) {
+  for (assay in seq_along(multiassayexperiment)) {
     matrix.add <- as.matrix(assays(multiassayexperiment)[[assay]])
     tables.list[[names(assays(multiassayexperiment)[assay])]] <- t(matrix.add)
   }

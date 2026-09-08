@@ -1,12 +1,15 @@
 // mgcca_eigen_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_eigen.
-// See src/mgcca_phases.hpp for the implementation.
+// See src/mgcca_phases.h for the implementation.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA eigen stage (Ksum, MKsum05, eigen, Y) over HDF5
+//' @return A list with the stage descriptor (\code{filename}, \code{nfac},
+//'   \code{eig_values}, \code{Y_path}), or \code{NULL} on error. The shared
+//'   components \code{Y} are written into \code{final_group} of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_eigen_rcpp(std::string filename, std::string tmp_group,

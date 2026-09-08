@@ -1,12 +1,15 @@
 // mgcca_scores_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_scores.
-// See src/mgcca_phases.hpp for the implementation.
+// See src/mgcca_phases.h for the implementation.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA scores stage (A=B_j, weights, scores) over HDF5
+//' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+//'   error. The per-table weights and scores are written into \code{final_group}
+//'   of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_scores_rcpp(std::string filename, std::string tmp_group,

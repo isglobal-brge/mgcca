@@ -3,10 +3,13 @@
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA dual scores stage (A=V diag(w_A) U'Y, weights, scores) over HDF5
+//' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+//'   error. The per-table weights and scores are written into \code{final_group}
+//'   of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_scores_svd_rcpp(std::string filename, std::string tmp_group,

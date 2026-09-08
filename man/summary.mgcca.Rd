@@ -14,10 +14,40 @@
 \item{...}{ignored.}
 }
 \value{
-\code{object}, invisibly.
+Called for its side effect (the overview, the per-table AVE, the
+  pairwise overlap and the top variables are written to the console). Returns
+  \code{object} invisibly.
 }
 \description{
 Prints the model overview, the variance explained per table
-  (outer-model AVE) and, for each table and component, the \code{top} variables
-  most correlated with the shared components.
+  (outer-model AVE), the pairwise overlap between tables and, for each table
+  and component, the \code{top} variables most correlated with the shared
+  components.
+}
+\details{
+The overlap block reports, for every pair of tables \eqn{(j,k)}, the
+  number \eqn{n_{jk}} of individuals both tables hold and its normalised
+  version \eqn{\alpha_{jk} = n_{jk}/n} over the union, plus the dispersion of
+  \eqn{\alpha} across pairs. It is descriptive: nothing in the fit depends on
+  it. It is worth reading because it is the structural quantity that decides
+  how much the treatment of missing individuals can matter -- with
+  \eqn{\alpha} flat and near 1 every sensible treatment agrees, and the
+  choice only starts to bite when the pairs disagree about who they share.
+  Two notes are printed when they apply: one when the dispersion of
+  \eqn{\alpha} is large, one when some pair shares very few individuals.
+  Both are reporting heuristics with no inferential status.
+}
+\examples{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:150]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = num(X1, 1:20), clinical = num(X2), other = num(X3))
+
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+             scores = TRUE)
+summary(fit, top = 3)
 }

@@ -9,7 +9,9 @@ mgcca_results(
   datasets = NULL,
   final_group = NULL,
   scores = NULL,
-  pval = TRUE
+  pval = TRUE,
+  tmp_group = "MGCCA_TMP",
+  outputs = NULL
 )
 }
 \arguments{
@@ -26,6 +28,26 @@ when \code{x} is a descriptor, otherwise required.}
 \item{scores, pval}{Whether to read the per-table scores / p-values (they exist
 only if \code{mgcca()} was called with \code{scores = TRUE} / the
 defaults). Default: infer from the descriptor, otherwise \code{TRUE}.}
+
+\item{tmp_group}{HDF5 group holding the intermediates, where the per-table
+presence masks \code{K} live. Only used for the overlap report; if the group
+is absent the report is \code{NULL} and nothing else changes. Default
+\code{"MGCCA_TMP"}.}
+
+\item{outputs}{Which components to collect. \code{NULL} (default) collects
+everything, which is exactly what this function has always done. Otherwise
+a character vector naming a subset of \code{"Y"}, \code{"corsY"},
+\code{"scores"}, \code{"pval"}, \code{"weights"}, \code{"scaling"},
+\code{"AVE"}, \code{"eigen"}, \code{"overlap"} (\code{"pval.cor"} and
+\code{"eig"} are accepted as synonyms of the last two). The datasets behind
+the components you do not ask for are never read: on a large fit collected
+over a slow filesystem that is where the time goes. The choice is purely
+subtractive -- every component you do ask for is bit-for-bit the one a full
+collection would have produced, because selecting outputs changes what is
+read and nothing about what was computed. Components not asked for come back
+\code{NULL}, and the object keeps its shape, so \code{$corsY} on a partial
+object is \code{NULL} rather than an error. What was requested is recorded
+on \code{attr(., "outputs")}.}
 }
 \value{
 A list of class \code{"mgcca"} with elements \code{Y} (matrix,
@@ -33,6 +55,18 @@ A list of class \code{"mgcca"} with elements \code{Y} (matrix,
   (named lists of variable \eqn{\times} component matrices), \code{scores}
   (named list or \code{NULL}) and \code{AVE} (\code{AVE_X},
   \code{AVE_outer_model}, \code{AVE_inner_model}).
+
+  Two read-only diagnostics are attached as well, and neither takes part in
+  any computation: \code{eigen} (the external spectral gap
+  \eqn{\mu_L - \mu_{L+1}} of the mgcca operator, absolute and relative, plus
+  the eigen-residual) and \code{overlap} (the number of individuals shared by
+  each pair of tables, \eqn{n_{jk}}, its normalised version
+  \eqn{\alpha_{jk} = n_{jk}/n} over the union, and the dispersion of
+  \eqn{\alpha} across pairs). \code{\link{summary}} prints both.
+
+  Each \code{scores} matrix spans the union of individuals, but an individual
+  that is not part of a given table has \code{NA} in that table's scores (the
+  HDF5 layer stores it as \code{NaN}). Only \code{Y} is defined for everyone.
 }
 \description{
 The C++/HDF5 core (\code{\link{mgcca_rcpp}} / \code{\link{mgcca}})
@@ -47,6 +81,33 @@ The C++/HDF5 core (\code{\link{mgcca_rcpp}} / \code{\link{mgcca}})
   are small (individuals or variables \eqn{\times} \code{nfac}), so collecting
   them into RAM does not defeat the out-of-core design; the large tables and
   intermediates stay on disk.
+}
+\examples{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:100]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = num(X1, 1:10), clinical = num(X2), other = num(X3))
+
+## collect = FALSE returns the descriptor; the results stay in the file.
+h5 <- tempfile(fileext = ".h5")
+desc <- mgcca(X, filename = h5, nfac = 2, method = "penalized",
+              lambda = rep(0.1, 3), collect = FALSE)
+
+res <- mgcca_results(desc)
+dim(res$Y)
+names(res$corsY)
+res$overlap$pairs
+
+## Subtractive collection: only the shared components are read back, and
+## they are bit-for-bit the ones a full collection would have returned.
+resY <- mgcca_results(desc, outputs = "Y")
+identical(resY$Y, res$Y)
+names(Filter(Negate(is.null), resY))
+unlink(h5)
 }
 \seealso{
 \code{\link{mgcca}}, \code{\link{plotInds}}, \code{\link{plotVars}}

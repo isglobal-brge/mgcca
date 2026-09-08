@@ -57,6 +57,25 @@
 #' @param title plot title.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotVariables}}, \code{\link{plotAVE}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' plotIndividuals(fit)
+#'
+#' ## coloured by a grouping factor, with per-group confidence ellipses
+#' grp <- factor(rep(c("a", "b"), length.out = nrow(fit$Y)))
+#' names(grp) <- rownames(fit$Y)
+#' plotIndividuals(fit, group = grp, title = "Individuals by group")
 #' @export
 plotIndividuals <- function(x, group = NULL, comps = c(1, 2), label = FALSE,
                             ellipse = TRUE, level = 0.95, point_size = 2.2,
@@ -122,6 +141,24 @@ plotIndividuals <- function(x, group = NULL, comps = c(1, 2), label = FALSE,
 #' @param title plot title. Default: the table name.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotIndividuals}}, \code{\link{getSignif}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' ## the clinical table has few variables: label them all
+#' plotVariables(fit, table = "clinical", top = 6)
+#'
+#' ## on an omics-scale table only the leading variables are labelled
+#' plotVariables(fit, table = 1, top = 5)
 #' @export
 plotVariables <- function(x, table = 1, comps = c(1, 2), top = 10,
                           title = NULL) {
@@ -175,6 +212,20 @@ plotVariables <- function(x, table = 1, comps = c(1, 2), top = 10,
 #' @param title plot title. Default \code{"Average Variance Explained"}.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotScree}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' plotAVE(fit)
 #' @export
 plotAVE <- function(x, title = "Average Variance Explained") {
     .check_mgcca(x)
@@ -204,6 +255,20 @@ plotAVE <- function(x, title = "Average Variance Explained") {
 #' @param title plot title. Default \code{"Eigenvalues"}.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotAVE}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 3, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' plotScree(fit)
 #' @export
 plotScree <- function(x, title = "Eigenvalues") {
     .check_mgcca(x)
@@ -233,6 +298,21 @@ plotScree <- function(x, title = "Eigenvalues") {
 #' @param title plot title.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotVariables}}, \code{\link{getSignif}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' plotLoadings(fit, table = "methylation", comp = 1, top = 10)
+#' plotLoadings(fit, table = "clinical", comp = 2)
 #' @export
 plotLoadings <- function(x, table = 1, comp = 1, top = 15, title = NULL) {
     .check_mgcca(x)
@@ -269,6 +349,12 @@ plotLoadings <- function(x, table = 1, comp = 1, top = 15, title = NULL) {
 #'   of the individuals. Requires the fit to have been computed with
 #'   \code{scores = TRUE}.
 #'
+#'   Individuals that are not part of the chosen table have no score in it
+#'   (\code{NA}) and are left out of the plot, with a message saying how many.
+#'   They are not drawn at the origin, which would put them where a genuinely
+#'   average measured individual sits. Use \code{\link{plotIndividuals}} on
+#'   \code{Y} for a view that covers everyone.
+#'
 #' @param x an \code{mgcca} object.
 #' @param table table name or index into \code{x$scores}. Default 1.
 #' @param comps the two components to display. Default \code{c(1, 2)}.
@@ -278,6 +364,23 @@ plotLoadings <- function(x, table = 1, comp = 1, top = 15, title = NULL) {
 #' @param title plot title. Default: the table name.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotIndividuals}}, \code{\link{plotBiplot}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' ## per-table scores are only produced when scores = TRUE
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+#'              scores = TRUE)
+#'
+#' ## individuals absent from the clinical table are dropped, with a message
+#' plotScores(fit, table = "clinical")
 #' @export
 plotScores <- function(x, table = 1, comps = c(1, 2), group = NULL,
                        ellipse = TRUE, level = 0.95, title = NULL) {
@@ -289,6 +392,15 @@ plotScores <- function(x, table = 1, comps = c(1, 2), group = NULL,
     if (is.na(tb) || is.null(x$scores[[tb]]))
         stop("table '", table, "' not found in x$scores")
     S <- as.matrix(x$scores[[tb]])
+    if (max(comps) > ncol(S)) stop("'comps' exceed the number of components")
+    # individuals absent from this table carry no score in it: leave them out
+    # rather than draw them at the origin
+    absent <- !stats::complete.cases(S[, comps, drop = FALSE])
+    if (any(absent)) {
+        message(sum(absent), " individual(s) absent from table '", tb,
+                "' left out of the plot (no score in this table).")
+        S <- S[!absent, , drop = FALSE]
+    }
     # reuse the individuals plotter by wrapping the scores as a pseudo-Y
     proxy <- x; proxy$Y <- S
     if (is.null(title)) title <- sprintf("%s scores", tb)
@@ -314,6 +426,20 @@ plotScores <- function(x, table = 1, comps = c(1, 2), group = NULL,
 #' @param title plot title.
 #' @return A \code{ggplot} object.
 #' @seealso \code{\link{plotIndividuals}}, \code{\link{plotVariables}}
+#' @examples
+#' data(cardiovascular)
+#' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+#' sel <- u[1:150]
+#' mk  <- function(d, cols = NULL) {
+#'     m <- as.matrix(d[rownames(d) %in% sel, , drop = FALSE])
+#'     if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' plotBiplot(fit, table = "clinical", top = 4)
 #' @export
 plotBiplot <- function(x, table = 1, comps = c(1, 2), top = 8, group = NULL,
                        title = "Biplot") {

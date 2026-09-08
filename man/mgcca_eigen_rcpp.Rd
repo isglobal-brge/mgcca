@@ -13,6 +13,11 @@ mgcca_eigen_rcpp(
   threads = NULL
 )
 }
+\value{
+A list with the stage descriptor (\code{filename}, \code{nfac},
+  \code{eig_values}, \code{Y_path}), or \code{NULL} on error. The shared
+  components \code{Y} are written into \code{final_group} of the HDF5 file.
+}
 \description{
 MGCCA eigen stage (Ksum, MKsum05, eigen, Y) over HDF5
 }

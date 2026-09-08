@@ -5,12 +5,34 @@
 #'   position \code{index} in a list of tables to numeric, preserving dimnames.
 #' @param listMAE a list of tables (e.g. from \code{\link{getTables}}).
 #' @param index integer position of the table to convert.
-#' @return The same list with table \code{index} coerced to a numeric matrix.
+#' @return The input list of tables (still of class \code{"ListMAE"}) with the
+#'   table at position \code{index} replaced by a numeric matrix of the same
+#'   dimensions, row names and column names. All other tables are returned
+#'   unchanged.
+#' @seealso \code{\link{getTables}}
+#' @examples
+#' if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
+#'   data(cardiovascular)
+#'   sel <- rownames(X2)[1:20]
+#'   ## two assays, features in rows, individuals in columns
+#'   a1 <- t(as.matrix(X1[rownames(X1) %in% sel, 1:8, drop = FALSE]))
+#'   a2 <- t(as.matrix(X2[rownames(X2) %in% sel, , drop = FALSE]))
+#'   ## a character assay, as methylation downloaded from TCGA often is
+#'   storage.mode(a1) <- "character"
+#'   mae <- MultiAssayExperiment::MultiAssayExperiment(
+#'       MultiAssayExperiment::ExperimentList(
+#'           list(methylation = a1, clinical = a2)))
+#'
+#'   tabs <- getTables(mae)
+#'   class(tabs[[1]][1, 1])          # "character"
+#'   tabs <- matrix.chr2num(tabs, 1)
+#'   class(tabs[[1]][1, 1])          # "numeric"
+#' }
 #' @export
 matrix.chr2num <- function(listMAE, index) {
 
   # Check that the input is of ListMAE class
-  if (!class(listMAE) == "ListMAE")
+  if (!inherits(listMAE, "ListMAE"))
     stop("Input must be a 'ListMAE' object \n")
 
   # Check index parameter has been given

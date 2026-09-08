@@ -7,12 +7,67 @@
 genCoords(multiassayexperiment, gen.coords, meth.index, col.name)
 }
 \arguments{
+\item{multiassayexperiment}{a \code{MultiAssayExperiment} object whose assays
+carry annotation (\code{rowRanges}, or \code{rowData} for the assay pointed
+at by \code{meth.index}).}
+
 \item{gen.coords}{must be a GRanges object}
 
 \item{meth.index}{is the index where the methylation data (or a SummarizedExperiment non Ranged) is located inside the mae.}
 
 \item{col.name}{column name}
 }
+\value{
+A \code{MultiAssayExperiment} with the same assays as
+  \code{multiassayexperiment}, each restricted to the features lying inside
+  \code{gen.coords}.
+}
 \description{
-Subset a MultiAssayExperiment object by specific genomic coordinates
+Keeps, in every assay of a \code{MultiAssayExperiment}, only the
+  features that fall inside a genomic region of interest. Assays stored as a
+  \code{RangedSummarizedExperiment} are filtered on their \code{rowRanges}
+  (features contained \emph{within} the region); the assay indicated by
+  \code{meth.index} -- typically methylation, held in a plain
+  \code{SummarizedExperiment} without ranges -- is filtered on a numeric
+  position column of its \code{rowData}. The resulting feature names are then
+  used to subset the whole object row-wise.
+}
+\examples{
+if (requireNamespace("MultiAssayExperiment", quietly = TRUE) &&
+    requireNamespace("SummarizedExperiment", quietly = TRUE) &&
+    requireNamespace("GenomicRanges", quietly = TRUE)) {
+  library(MultiAssayExperiment)
+  library(SummarizedExperiment)
+  library(GenomicRanges)
+
+  data(cardiovascular)
+  sel <- rownames(X2)[1:20]
+
+  ## a non-ranged assay (methylation): positions live in rowData
+  m1 <- t(as.matrix(X1[rownames(X1) \%in\% sel, 1:8, drop = FALSE]))
+  se1 <- SummarizedExperiment(
+      assays  = list(beta = m1),
+      rowData = DataFrame(Genomic_Coordinate = seq(1000, 8000,
+                                                   length.out = nrow(m1)),
+                          chr = "chr1",
+                          row.names = rownames(m1)))
+
+  ## a ranged assay: positions live in rowRanges
+  m2 <- t(as.matrix(X3[rownames(X3) \%in\% sel, , drop = FALSE]))
+  gr <- GRanges(seqnames = "chr1",
+                ranges = IRanges(start = c(1200, 2200, 3200, 9000),
+                                 width = 50))
+  names(gr) <- rownames(m2)
+  rse2 <- SummarizedExperiment(assays = list(expr = m2), rowRanges = gr)
+
+  mae <- MultiAssayExperiment(
+      ExperimentList(list(methylation = se1, cells = rse2)))
+
+  region <- GRanges(seqnames = "chr1", ranges = IRanges(start = 1000,
+                                                        end = 5000))
+  sub <- genCoords(mae, region, meth.index = 1,
+                   col.name = "Genomic_Coordinate")
+  dim(sub[[1]])   # methylation restricted to the region
+  dim(sub[[2]])   # cells restricted to the region
+}
 }

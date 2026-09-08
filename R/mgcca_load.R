@@ -12,7 +12,8 @@
 
 ## Write the provenance manifest for a finished run. `res` is the descriptor
 ## returned by mgcca_rcpp(); `method`/`lambda` are the mgcca() call arguments.
-.mgcca_write_manifest <- function(res, method, lambda) {
+.mgcca_write_manifest <- function(res, method, lambda,
+                                  input_group = NULL, scale = NULL) {
     fg <- if (is.null(res$final_group)) "FINAL_RESULTS" else res$final_group
     datasets <- as.character(res$datasets)
 
@@ -26,6 +27,14 @@
         m             = as.integer(res$m),
         datasets      = datasets,
         eig_values    = as.numeric(res$eig_values))
+    # The results manifest records where the RESULTS live. The reliability API
+    # (mgcca_sensitivity / mgcca_block_profile / mgcca_stability) also needs the
+    # SOURCE blocks -- the sensitivity kernel reads them from HDF5 and stability
+    # refits -- so the INPUT group must be recorded too, or a reloaded fit cannot
+    # be used for anything that touches the data. Written here rather than assumed
+    # to be "MGCCA_IN", which is only the default and is user-configurable.
+    if (!is.null(input_group)) run$input_group <- as.character(input_group)
+    if (!is.null(scale))       run$scale       <- as.integer(isTRUE(scale))
     mgcca_write_attrs_rcpp(res$filename, fg, "", run)
     BigDataStatMeth::hdf5_close_all()
 
@@ -72,11 +81,27 @@
 #'   with the reconstructed provenance descriptor on \code{attr(., "desc")}.
 #' @seealso \code{\link{mgcca}}, \code{\link{mgcca_results}}
 #' @examples
-#' \dontrun{
-#' fit <- mgcca(X, filename = "res.h5", method = "penalized", lambda = c(0.75, 1))
-#' rm(fit)
-#' fit2 <- mgcca_load("res.h5")   # same object, straight from disk
+#' data(cardiovascular)
+#' ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:100]
+#' num <- function(d, cols = seq_len(ncol(d))) {
+#'     m <- as.matrix(d[rownames(d) %in% ids, cols, drop = FALSE])
+#'     storage.mode(m) <- "double"
+#'     m
 #' }
+#' X <- list(methylation = num(X1, 1:10), clinical = num(X2), other = num(X3))
+#'
+#' ## A file-backed fit. collect = FALSE leaves the results in the file only.
+#' h5 <- tempfile(fileext = ".h5")
+#' desc <- mgcca(X, filename = h5, nfac = 2, method = "penalized",
+#'               lambda = rep(0.1, 3), collect = FALSE)
+#' rm(desc)
+#'
+#' ## Rebuilt from the file alone -- provenance included.
+#' fit <- mgcca_load(h5)
+#' fit
+#' attr(fit, "desc")$method
+#' attr(fit, "desc")$lambda
+#' unlink(h5)
 #' @export
 mgcca_load <- function(file, group = "FINAL_RESULTS") {
     if (!is.character(file) || length(file) != 1L)
@@ -119,7 +144,17 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
             method        = chr(man$method),
             lambda        = lambda,
             mgcca_version = chr(man$mgcca_version),
-            mgcca_date    = chr(man$mgcca_date))
+            mgcca_date    = chr(man$mgcca_date),
+            input_group   = if (is.null(man$input_group)) NA_character_
+                            else as.character(man$input_group),
+            scale         = if (is.null(man$scale)) NA
+                            else as.logical(as.integer(man$scale)))
+        # NB `input_group` stays NA when the fit predates it. mgcca_load() does NOT
+        # warn here: it is the general loader, and provenance of the INPUT blocks
+        # only matters to the reliability functions. Warning every caller about a
+        # field they will never use is noise, and it changed the behaviour of a
+        # documented, tested path. The check belongs where it is actionable --
+        # the reliability entry points fail closed on a missing input group.
     } else {
         ## no manifest -> best effort from the file layout
         datasets <- .mgcca_discover_datasets(file, group)
@@ -129,6 +164,9 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
         top <- tryCatch(mgcca_list_group_rcpp(file, group),
                         error = function(e) character(0))
         BigDataStatMeth::hdf5_close_all()
+        # No manifest at all: provenance is unknown. `input_group` stays NA on
+        # purpose so the reliability entry points can fail closed on it; this
+        # function stays silent, exactly as before.
         desc <- list(
             filename    = file,
             datasets    = datasets,
@@ -136,7 +174,9 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
             scores      = "scores" %in% top,
             route       = NA_character_,
             method      = NA_character_,
-            lambda      = NULL)
+            lambda      = NULL,
+            input_group = NA_character_,
+            scale       = NA)
     }
 
     obj <- mgcca_results(desc)

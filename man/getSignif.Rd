@@ -2,13 +2,53 @@
 % Please edit documentation in R/getSignif.R
 \name{getSignif}
 \alias{getSignif}
-\title{Generalized canonical correlation with missing individuals}
+\title{Variables significantly correlated with the shared components}
 \usage{
 getSignif(x, df = NA, pval.cut = 0.05, ...)
 }
 \arguments{
 \item{x}{an object of class 'mgcca'}
+
+\item{df}{tables to inspect: a vector of positions in \code{x$pval.cor} or of
+table names. The default \code{NA} means all tables.}
+
+\item{pval.cut}{significance level. A variable is reported when any of its
+component p-values is strictly below this value. Default 0.05.}
+
+\item{...}{further arguments, currently ignored.}
+}
+\value{
+A \code{data.frame} with one row per selected variable and two
+  character columns: \code{variable} (the variable name) and \code{table}
+  (the table it comes from). A variable significant in more than one table
+  appears once per table.
 }
 \description{
-Generalized canonical correlation with missing individuals
+Collects, from the per-table p-values stored in
+  \code{x$pval.cor}, the variables whose correlation with \emph{at least one}
+  shared canonical component is significant at level \code{pval.cut}. The fit
+  must therefore carry p-values (see \code{\link{mgcca}}).
+}
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+sig <- getSignif(fit, pval.cut = 0.01)
+head(sig)
+table(sig$table)
+
+## only the clinical table
+getSignif(fit, df = "clinical", pval.cut = 0.01)
+}
+\seealso{
+\code{\link{topVars}}, \code{\link{plotVariables}}
 }

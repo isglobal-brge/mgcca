@@ -60,3 +60,4 @@ MGCCA over HDF5 (single-call C++ orchestrator)
 \seealso{
 \code{\link{mgcca}}, \code{\link{mgcca_results}}
 }
+\keyword{internal}

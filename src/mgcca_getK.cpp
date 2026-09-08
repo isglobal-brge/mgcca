@@ -1,12 +1,16 @@
 // mgcca_getK_rcpp — thin [[Rcpp::export]] wrapper over mgcca::run_getK.
-// See src/mgcca_phases.hpp for the implementation.
+// See src/mgcca_phases.h for the implementation.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA getK stage (build padded X and indicator diagonal K) over HDF5
+//' @return A list with the stage descriptor (\code{filename}, \code{out_group},
+//'   \code{datasets}, \code{m}, \code{rn}), or \code{NULL} on error. The
+//'   union-padded tables and their indicator diagonals are written into
+//'   \code{out_group} of the HDF5 file.
 //' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_getK_rcpp(std::string filename, std::string in_group,

@@ -1,0 +1,843 @@
+---
+title: "How much of a shared subspace is carried by group structure?"
+subtitle: "Dolors Pelegrí-Sisó and Juan R. Gonzalez"
+author: |
+   Institute for Global Health (ISGlobal), Barcelona, Spain
+   Bioinformatics Research Group in Epidemiolgy (BRGE)
+   https://brge.isglobal.org
+date: "`r Sys.Date()`"
+package: "`r pkg_ver('mgcca')`"
+output:
+  BiocStyle::html_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
+  BiocStyle::pdf_document:
+    number_sections: true
+    toc: yes
+    fig_caption: yes
+vignette: >
+  %\VignetteIndexEntry{Reliability of the shared subspace}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      fig.width = 7, fig.height = 3.6)
+```
+
+# Introduction
+
+Having estimated a shared subspace with `mgcca()`, two questions arise before any
+of it is interpreted.
+
+The first is whether a quantity you care about -- a phenotype, an exposure, a
+score -- actually lies in that subspace, and if it does, how much of that
+alignment leans on a **grouping** in your design: batch, plate, centre, cohort,
+run. An association that disappears once the grouping is accounted for is a
+different scientific object from one that survives it, and nothing in the fit
+itself distinguishes them.
+
+The second is whether the subspace is **reproducible**: would you have estimated
+the same directions from a different sample, or from data without one particular
+group?
+
+This vignette covers the three functions that answer them:
+
+| function | question |
+|---|---|
+| `mgcca_sensitivity()` | does the query align with the subspace, and how much of that is carried by the grouping? |
+| `mgcca_block_profile()` | which blocks carry the sensitivity? |
+| `mgcca_stability()` | is the subspace reproducible under resampling? |
+
+## Reading the numbers without the algebra {#reading}
+
+### Two words used throughout
+
+**The shared subspace** is just the handful of axes the tables agree on -- the
+common signal running through your proteins, transcripts and metabolites at once.
+Everything below is about how a variable of yours relates to *those axes*.
+
+**A grouping** is any variable that puts each individual into one of a few groups.
+That is all it means. It might be:
+
+* **technical** -- the plate a sample was run on, the sequencing batch, the
+  recruiting centre, the week of processing;
+* **biological or clinical** -- disease stage, tissue, treatment arm, cohort.
+
+⚠️ **The functions treat both the same way; you must not.** The arithmetic is
+identical, but a result that leans on *plate* and a result that leans on *disease
+stage* mean opposite things. Which one you have is something only you know, and it
+is the single judgement this vignette keeps asking you to make. Where the text
+says "grouping" without qualifying it, it means whichever one you supplied.
+
+### What "alignment" actually means
+
+`T`, the alignment, is best read as **the fraction of your variable that the
+shared omic axes can reproduce**. It behaves like a proportion of variance
+explained: 0 means the integrated signal cannot account for your variable at all,
+1 would mean it accounts for it entirely. (Strictly it is that proportion measured
+in the weighting the estimator uses for individuals missing from some tables, but
+nothing below depends on the distinction.)
+
+So a statement like *"BMI has an alignment of 0.30"* reads as: **about a third of
+the variation in BMI is echoed in the axes the omic tables agree on.**
+
+⚠️ **It has no conventional threshold.** Unlike a correlation, you cannot say
+"above 0.3 is meaningful". Its floor depends on how many axes you kept and how
+many individuals you have, which is why every example here includes a **noise
+control**: a variable made of pure random numbers, run through the same machinery.
+That row tells you what "nothing at all" looks like *in your own analysis*, and
+your real variable is read against it.
+
+### The four numbers
+
+| number | what it tells you | a concrete example |
+|---|---|---|
+| `T` | how much of your variable the integrated omic signal accounts for | BMI at `T = 0.30` and smoking at `T = 0.02`: the omics have a lot to say about BMI and essentially nothing about smoking |
+| `S_total` | how **fragile** that reading is -- how much it would shift if the measurements were slightly different (a re-run, a drifting platform, a different normalisation) | two proteins both at `T = 0.20`, one with a small `S_total` and one with a large one: the first would read the same tomorrow, the second might not |
+| `S_between` | the part of that fragility that follows your **grouping** -- batch, plate, centre, cohort, tumour stage | of everything that could shift the BMI reading, how much of it is "which plate the sample was run on" |
+| `R_between` | the share: `S_between / S_total` | `R_between = 0.05`: the reading barely depends on the grouping. `R_between = 0.60`: most of what holds it up is the group structure -- if your groups were plates rather than disease stages, that is a warning |
+
+And the practical point, which is the whole reason the layer exists:
+
+> **Two variables with the same `T` are not the same finding** if one has a high
+> `R_between` and the other does not. The fit alone gives you no way to tell them
+> apart; this is what does.
+
+### In what order to look at things
+
+There is a sequence, and skipping to the middle of it is how results get
+overinterpreted.
+
+**Step 1 -- is the subspace itself trustworthy?** Run `mgcca_stability()` first. If
+the axes move substantially when you resample your own participants, nothing that
+follows should be interpreted: you would be reading a structure that a slightly
+different sample would not have produced. Section \@ref(is-the-subspace-reproducible)
+shows one trustworthy case and one that is not.
+
+**Step 2 -- does the omic signal know about your variable at all?** Read `T`
+against the noise control. If it is not clearly above it, stop: there is nothing
+to explain.
+
+**Step 3 -- what is holding it up?** Now `R_between` and the per-block profile.
+
+```{r flow, echo=FALSE, fig.width=7.6, fig.height=4.8, fig.cap="The order matters: each step only makes sense if the one above it passed."}
+# Drawn with ggplot2 rather than a diagram package: ggplot2 is already a hard
+# dependency, so the figure cannot quietly vanish on a machine where an optional
+# one is missing.
+pal <- c("#0072B2", "#D55E00", "#009E73")
+BOX <- function(x, y, w, label, fill, size = 3.0, h = 1.25)
+  list(ggplot2::annotate("tile", x = x, y = y, width = w, height = h, fill = fill),
+       ggplot2::annotate("text", x = x, y = y, label = label, colour = "white",
+                         size = size, lineheight = 1.0))
+AR <- function(x0, y0, x1, y1, lab = NULL)
+  c(list(ggplot2::annotate("segment", x = x0, y = y0, xend = x1, yend = y1,
+           arrow = grid::arrow(length = grid::unit(0.15, "cm"), type = "closed"),
+           colour = "grey45", linewidth = 0.4)),
+    if (!is.null(lab)) list(ggplot2::annotate("text", x = (x0 + x1)/2 - 0.30,
+           y = (y0 + y1)/2, label = lab, size = 2.7, colour = "grey30", hjust = 1)))
+sp <- 2.0
+ggplot2::ggplot() +
+  BOX(sp, 9.0, 5.4, "1.  Is the subspace stable?\nmgcca_stability()", pal[1]) +
+  AR(sp - 1.4, 8.35, -4.0, 7.75, "no") + AR(sp, 8.35, sp, 7.75, "yes") +
+  BOX(-4.0, 7.1, 4.0, "STOP\nnothing below\nis interpretable", "grey55", 2.8) +
+  BOX(sp, 7.1, 5.4, "2.  Is T above the\nnoise floor?", pal[1]) +
+  AR(sp - 1.4, 6.45, -4.0, 5.85, "no") + AR(sp, 6.45, sp, 5.85, "yes") +
+  BOX(-4.0, 5.2, 4.0, "STOP\nthe omics have\nnothing to say", "grey55", 2.8) +
+  BOX(sp, 5.2, 5.4, "3.  Is R_between\nhigh?", pal[1]) +
+  AR(sp - 1.4, 4.55, -1.0, 3.95, "no") + AR(sp + 1.4, 4.55, 6.4, 3.95, "yes") +
+  BOX(-1.0, 3.3, 5.0, "STRONGEST\na real share, and it does\nnot lean on your groups", pal[3], 2.8) +
+  BOX(6.4, 3.3, 5.0, "CHECK\nwhat IS your grouping?", pal[2], 2.8) +
+  AR(5.2, 2.65, 4.0, 2.05) + AR(7.6, 2.65, 8.8, 2.05) +
+  BOX(4.0, 1.4, 4.4, "biological\n(stage, tissue)\n= a finding", pal[3], 2.7) +
+  BOX(8.8, 1.4, 4.4, "technical\n(plate, batch)\n= suspect an artefact", pal[2], 2.7) +
+  ggplot2::coord_cartesian(xlim = c(-6.3, 11.3), ylim = c(0.5, 9.9)) +
+  ggplot2::theme_void() +
+  ggplot2::labs(title = "In what order to read the numbers",
+                subtitle = "each step only makes sense if the one above it passed") +
+  ggplot2::theme(plot.title = ggplot2::element_text(face = "bold", size = 11),
+                 plot.subtitle = ggplot2::element_text(size = 9, colour = "grey35"))
+```
+
+### What each combination means
+
+Assuming step 1 passed, this is how the two headline numbers combine:
+
+| | `R_between` **low** | `R_between` **high** |
+|---|---|---|
+| **`T` clearly above noise** | The strongest position. The omics account for a real share of your variable, and that reading does not lean on your grouping. Report it, and still not as causal. | The omics account for it, **but the signal moves with your groups**. Two very different explanations fit, and the data cannot separate them -- see below. |
+| **`T` near the noise level** | The integrated signal has essentially nothing to say about this variable. Nothing to interpret, and no amount of further analysis will change that. | The little alignment there is comes mostly from group structure. The weakest cell: small and group-driven. |
+
+**The top-right cell is where judgement is needed, and it is worth being explicit
+about why.** A high `R_between` means the alignment and the grouping move
+together. That is what you would expect if:
+
+* the grouping is **biological** -- disease stage, tissue, treatment arm -- and
+  your variable genuinely varies along it. This is a finding.
+* the grouping is **technical** -- plate, batch, centre, run date -- in which case
+  you may be looking at a processing artefact dressed as biology.
+
+**The analysis cannot distinguish these. You can, because you know what the
+grouping is.** That is the honest limit, and it is also the useful part: a number
+that flags "check this" is worth more than one that quietly does not.
+
+Like the estimator, the numerical core runs in C++ over
+[`BigDataStatMeth`](https://github.com/isglobal-brge/BigDataStatMeth): the block
+Grams are formed out-of-core and never load a block into memory, while the
+participant-space algebra -- which is `n × n` in *individuals*, not variables --
+is done in RAM, where it belongs.
+
+**What these quantities are not.** They are first-order sensitivity coefficients
+of a fitted operator. They are not causal, and `mgcca_sensitivity()` is not a
+psychometric reliability coefficient. The word *reliability* names the framework;
+the functions take the narrower mathematical names.
+
+# Installation
+
+`mgcca` is installed from Bioconductor:
+
+```{r install, eval=FALSE}
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install("mgcca")
+```
+
+```{r load_library}
+library(mgcca)
+```
+
+# A self-contained example
+
+The `cardiovascular` data set ships with the package: three tables that do not
+share the same individuals.
+
+```{r cardio_fit}
+data(cardiovascular)
+X <- list(methylation = as.matrix(X1),
+          clinical    = as.matrix(X2),
+          other       = as.matrix(X3))
+X <- lapply(X, function(m) { storage.mode(m) <- "double"; m })
+
+h5file <- tempfile(fileext = ".h5")
+fit <- mgcca(X, filename = h5file, nfac = 2, method = "solve", scores = TRUE)
+fit
+```
+
+## Does the omic signal know anything about my variable?
+
+A query is any participant-level vector or matrix. It must carry **individual
+identifiers**: participants are matched by name, never by position. That is not
+fussiness. A misaligned query returns a perfectly plausible number rather than an
+error, and nothing in the output would let you catch it.
+
+We ask about two clinical variables, and add pure noise as a control -- a
+reference that should show almost no alignment, so the others can be read against
+something.
+
+```{r cardio_query}
+# The clinical table covers 633 of the 646 individuals in the fit. A query does
+# NOT have to cover everyone: those it misses simply contribute nothing, and
+# `n_used` reports how many actually did.
+cids <- intersect(rownames(fit$Y), rownames(X2))
+
+# The noise floor is ESTIMATED, not taken from one draw. A single random column is
+# itself a random number: it can land high or low, and reading a real variable
+# against one lucky draw is how a null result becomes a finding. Five columns give
+# the floor a range instead of a point.
+set.seed(2026)
+noise <- replicate(5, rnorm(length(cids)))
+colnames(noise) <- paste0("noise", 1:5)
+
+Q <- cbind(LDL     = X2[cids, "LDL"],
+           glucose = X2[cids, "Gluc"],
+           noise)
+rownames(Q) <- cids
+
+sens <- mgcca_sensitivity(fit, Q)
+sens
+```
+
+`T` is the share of the query that lies in the retained subspace, bounded in
+$[0,1]$. `S_total` is its first-order sensitivity: how much that alignment would
+move under a structured perturbation of the blocks.
+
+```{r cardio_read, echo=FALSE, results='asis'}
+o     <- sens$overall
+tl    <- o[["T"]][o$query == "LDL"]
+tg    <- o[["T"]][o$query == "glucose"]
+floor <- o[["T"]][grepl("^noise", o$query)]
+hi    <- max(floor)
+say <- function(x, nm) {
+  if (x > 3 * hi)
+    sprintf(paste0("**%s clears the ceiling comfortably.** The omic signal accounts ",
+                   "for %.2f%% of it, against a ceiling of %.2f%%, so what it picks ",
+                   "up is not something random numbers would have produced."),
+            nm, 100 * x, 100 * hi)
+  else if (x > hi)
+    sprintf(paste0("**%s is above the ceiling, but only just** -- %.2f%% against ",
+                   "%.2f%%. A gap that narrow is worth noting and not worth ",
+                   "building on: treat it as suggestive, and see whether it holds ",
+                   "in a second cohort before it goes in an abstract."),
+            nm, 100 * x, 100 * hi)
+  else
+    sprintf(paste0("**%s does not clear the ceiling at all** (%.2f%% against ",
+                   "%.2f%%). The integrated signal accounts for no more of it than ",
+                   "it would of random numbers, so there is nothing here to explain ",
+                   "and no follow-up analysis will change that."),
+            nm, 100 * x, 100 * hi)
+}
+cat(sprintf(paste0(
+  "**Reading this table.** The shared axes account for %.2f%% of the variation in ",
+  "LDL and %.2f%% of glucose.\n\n",
+  "Now, is that a lot or a little? On its own, neither -- the number has no ",
+  "conventional threshold. That is what the five `noise` rows are for. They are ",
+  "columns of random numbers put through exactly the same machinery, and they come ",
+  "back between %.2f%% and %.2f%%. **A variable with no relationship whatsoever ",
+  "still scores in that band**, simply because projecting anything onto a couple ",
+  "of axes catches a little by chance. So that band is the ceiling that ",
+  "meaningless variables reach in this analysis, and it is the yardstick.\n\n",
+  "(Five columns rather than one, because a single random column is itself a ",
+  "random draw: it might land at %.2f%% or at %.2f%%. Reading a real variable ",
+  "against one lucky draw is exactly how a null result turns into a finding.)\n\n",
+  "%s\n\n%s\n\n",
+  "⚠️ What this does **not** say: nothing about methylation values being higher or ",
+  "lower, nothing about direction, and nothing about causing or being caused. It ",
+  "says how much of a variable's variation the integrated signal can reproduce, ",
+  "and whether that is more than chance alone would give.\n"),
+  100 * tl, 100 * tg, 100 * min(floor), 100 * hi,
+  100 * min(floor), 100 * hi,
+  say(tl, "LDL"), say(tg, "Glucose")))
+```
+
+`S_between` and `R_between` are `NA` here, and deliberately so: **no grouping was
+supplied**, so the group-dependent quantities are *absent* rather than filled
+with a zero that would look like a measurement. `cardiovascular` carries no batch,
+centre or run variable, which is exactly the common situation in which only the
+total is available. Section \@ref(a-real-grouping) uses a data set that does have
+one.
+
+```{r cardio_floor, fig.height=3.6, fig.cap="Only a query whose point sits outside the grey band is saying anything the machinery would not have produced from random numbers."}
+plot(sens, type = "overall", noise = paste0("noise", 1:5))
+```
+
+**How to read this figure.** One row per variable, and the grey band is the level
+the control columns reached -- what chance alone gives in *this* analysis. A point
+inside the band is indistinguishable from noise; a point clear of it is not. It is
+the same comparison the table above makes, but you can take it in at a glance,
+and it scales: with two hundred exposures the table becomes unreadable and this
+does not.
+
+## Which data type is the finding coming from?
+
+```{r cardio_profile}
+prof <- mgcca_block_profile(sens)
+prof
+```
+
+`mgcca_block_profile()` **extracts**; it does not recompute. The block-level
+quantities come back from the same pass that produced the totals, so there is one
+route to them. Two independent routes would eventually disagree, and the
+disagreement would be silent.
+
+Read the shares next to the absolute values. A block carrying most of a
+negligible sensitivity is still carrying most of it, and the share alone would
+not tell you which situation you are in.
+
+```{r cardio_profile_plot, fig.height=4.4}
+plot(sens)
+```
+
+**How to read this figure.** One panel per variable, one bar per table. The bar
+height is how much that table contributes to the variable's sensitivity, so the
+tallest bar names the data type the finding actually rests on. In a paper this is
+the difference between *"the integrated signal relates to LDL"* and *"the relation
+is essentially methylation, with the clinical table adding little"* -- and only
+the second is a statement a reviewer can act on.
+
+```{r cardio_profile_read, echo=FALSE, results='asis'}
+bb <- prof$profile[prof$profile$query == "LDL", ]
+top <- bb$block[which.max(bb$share_total)]
+cat(sprintf(
+  "Here the largest contributor to LDL is **%s** (%.0f%% of its total sensitivity).\n",
+  top, 100 * max(bb$share_total)))
+```
+
+# When your study has batches, centres or stages {#a-real-grouping}
+
+`miniACC` (from `r Biocpkg("MultiAssayExperiment")`) is a compact public data set
+that offers both of the things this layer needs: individuals **missing from some
+assays**, and a genuine clinical **grouping**.
+
+```{r acc_available, echo=FALSE}
+have_acc <- requireNamespace("MultiAssayExperiment", quietly = TRUE) &&
+            requireNamespace("SummarizedExperiment", quietly = TRUE)
+```
+
+```{r acc_build, eval=have_acc}
+library(MultiAssayExperiment)
+library(SummarizedExperiment)
+data("miniACC", package = "MultiAssayExperiment")
+
+# Assays are features x samples; mgcca wants individuals x variables with the
+# patient ID as row name, so each assay is renamed through the sample map and
+# transposed. A few hundred variables per block keeps the vignette quick.
+sm  <- sampleMap(miniACC)
+use <- c(mRNA = "RNASeq2GeneNorm", protein = "RPPAArray", miRNA = "miRNASeqGene")
+
+tabs <- lapply(use, function(a) {
+  m <- assay(experiments(miniACC)[[a]])
+  k <- sm[sm$assay == a, ]
+  colnames(m) <- as.character(k$primary[match(colnames(m), as.character(k$colname))])
+  m <- m[, !duplicated(colnames(m)), drop = FALSE]
+  Xa <- t(m); storage.mode(Xa) <- "double"
+  keep <- apply(Xa, 2, function(v) all(is.finite(v)) && sd(v) > 0)
+  Xa[, which(keep)[seq_len(min(sum(keep), 150))], drop = FALSE]
+})
+
+sapply(tabs, dim)
+length(Reduce(union, lapply(tabs, rownames)))       # union of individuals
+length(Reduce(intersect, lapply(tabs, rownames)))   # present in all three
+```
+
+Of the 80 patients, only 46 appear in all three assays. The remaining 34 are
+present in some and absent from others -- the setting `mgcca` exists for, and the
+reason the availability weighting matters here rather than being a formality.
+
+```{r acc_fit, eval=have_acc}
+h5acc <- tempfile(fileext = ".h5")
+acc <- mgcca(tabs, filename = h5acc, nfac = 2,
+             method = "penalized", lambda = rep(1, 3), scores = TRUE)
+
+ids  <- rownames(acc$Y)
+cd   <- as.data.frame(colData(miniACC))
+stage <- factor(as.character(cd[ids, "pathologic_stage"]))
+names(stage) <- ids
+table(stage, useNA = "ifany")
+```
+
+## Is my result leaning on those groups?
+
+Now the grouped quantities are defined. We ask about tumour stage as an ordered
+score, against the same noise control -- five columns of it, for the reason
+spelt out below.
+
+```{r acc_sens, eval=have_acc}
+score <- setNames(as.numeric(stage), ids)
+# FIVE noise columns, not one. A single random column is a DRAW from the noise
+# level, not the noise level -- and on the map below, one draw lands wherever it
+# lands, sometimes squarely along the direction the groups separate in. Five of
+# them show the spread, which is the honest comparison.
+set.seed(2026)
+Q <- cbind(stage_score = score, replicate(5, rnorm(length(ids))))
+colnames(Q) <- c("stage_score", paste0("noise", 1:5))
+rownames(Q) <- ids
+
+sens_acc <- mgcca_sensitivity(acc, Q, group = stage)
+sens_acc
+```
+
+```{r acc_sens_read, eval=have_acc, echo=FALSE, results='asis'}
+o  <- sens_acc$overall
+sg <- o[o$query == "stage_score", ]; nzr <- range(o[["T"]][grepl("^noise", o$query)])
+r  <- sg$R_between
+band <- if (r < 0.05) "very low" else if (r < 0.20) "low" else if (r < 0.50) "moderate" else "high"
+cat(sprintf(paste0(
+  "**Reading this table.** The three assays together account for %.2f%% of the ",
+  "variation in tumour stage, against %.2f--%.2f%% for the five random columns. ",
+  "Of everything that could shift that reading, **%.1f%% follows stage itself as ",
+  "a grouping** (`R_between` = %.3f) -- a %s value.\n\n",
+  "\u26a0\ufe0f Note where the alignment sits relative to the noise columns: %s. ",
+  "With this many patients and two retained axes, an arbitrary vector picks up a ",
+  "share of the subspace by chance, and `T` alone does not distinguish the two. ",
+  "What does is the grouping decomposition below, and the direction on the map.\n"),
+  100 * sg[["T"]], 100 * nzr[1], 100 * nzr[2], 100 * r, r, band,
+  if (sg[["T"]] > nzr[2]) "above every one of them"
+  else if (sg[["T"]] < nzr[1]) "**below every one of them**"
+  else "**inside their range**"))
+```
+
+**What to do with that number, whatever it had turned out to be.** This is the
+part worth having in advance, because the temptation is always to decide what a
+value means after seeing it.
+
+| if `R_between` were... | what it would be saying | what to do next |
+|---|---|---|
+| **below ~0.05** | the reading barely depends on the grouping at all | nothing further on this axis. Report the alignment; the grouping is not what is holding it up |
+| **around 0.1--0.3** | a real but minority share follows the grouping | check *which* blocks carry the between-group part (`mgcca_block_profile()`). If it concentrates in one assay, that assay's processing is the thing to look at |
+| **above ~0.5** | most of what holds the reading up is group structure | treat the alignment as a statement about the groups until shown otherwise. Re-run with the grouping residualised out via `covariates =`, and see what survives |
+| **high, and the grouping is technical** | plate, batch, centre, run date | this is the artefact case. Look at whether the batches are confounded with anything biological, and consider re-normalising before re-fitting |
+| **high, and the grouping is biological** | stage, tissue, treatment arm | this may be exactly the finding. But confirm the biological grouping is not itself confounded with a technical one -- samples of the same stage collected in the same period is a very common way for the two to become indistinguishable |
+
+**The case in front of us.** A high `R_between` means the alignment and the group
+structure move together. That is what you would expect from a genuine biological
+gradient -- patients at the same stage really do resemble each other -- and also
+exactly what a batch confounded with stage would produce. **The analysis cannot
+separate those two. You can, because you know how the samples were collected.**
+
+If you cannot rule the technical explanation out, the honest options are: report
+the alignment as conditional on the grouping, or re-run with the grouping
+residualised out and report what is left. Both are defensible. Reporting the raw
+alignment without mentioning the grouping is not.
+
+
+
+`R_between` is the share of the sensitivity carried by the grouping. **Read it
+with its two components, never alone.** A high ratio can sit on a negligible
+absolute sensitivity, and a low ratio on a large one; the ratio says how the
+sensitivity is distributed, not how much of it there is. That is why `S_total` and
+`S_between` are printed beside it rather than being folded away.
+
+```{r acc_plot, eval=have_acc, fig.height=4.6}
+plot(sens_acc)
+```
+
+**How to read this figure.** Each bar is one assay. The height says which assay
+the finding rests on; the inner bar and its percentage say how much of that
+assay's contribution follows the grouping. An assay with a tall bar and a small
+percentage is carrying signal that does not depend on the groups -- the most
+comfortable position to be in. A tall bar with a large percentage is the one to
+look at twice.
+
+The bars are the total sensitivity per block; the inner bar and the label are the
+part carried by the grouping. They are drawn overlaid rather than side by side
+for a plain reason: the between-group part is routinely two orders of magnitude
+shorter, so side by side it renders as an invisible sliver and the figure fails
+to show the one comparison it exists for.
+
+## Seeing it instead of inferring it
+
+`R_between` says *how much* of the reading follows the grouping. The map view says
+*in which direction*, and that is often the more persuasive of the two.
+
+```{r acc_map, eval=have_acc, fig.height=4.8, fig.cap="Individuals on the reference axes, group centroids as diamonds, and each query as an arrow."}
+plot(sens_acc, type = "map")
+```
+
+Each point is a patient placed on the axes the assays agree on; the diamonds are
+the group centroids; each arrow is the direction a query represents.
+
+**What to look for.** The dashed line is the direction the groups separate in.
+If a query's arrow runs along it, the query and the grouping are describing the
+same movement -- which is exactly what a high `R_between` measures. If it points
+elsewhere, they are not. Arrow *lengths* mean nothing here: they are all scaled
+alike, and only the angle carries information.
+
+```{r acc_map_angles, eval=have_acc, echo=FALSE, results='asis'}
+# The angles are MEASURED, not read off the picture. Two people looking at the same
+# arrows will not agree to within ten degrees, and this comparison lives or dies on
+# about that much.
+R2 <- sens_acc$reference
+Y2 <- R2$Y[, 1:2, drop = FALSE]
+gv <- R2$group[rownames(Y2)]
+cen <- t(vapply(split(seq_len(nrow(Y2)), gv),
+                function(i) colMeans(Y2[i, , drop = FALSE]), numeric(2)))
+gdir <- cen[nrow(cen), ] - cen[1L, ]
+# Angle to the LINE, not the ray: the dashed line is drawn through the origin both
+# ways, so a query pointing "backwards" along it agrees just as strongly.
+angl <- function(u) 180 / pi * acos(pmin(1, abs(sum(u * gdir)) /
+                                    sqrt(sum(u^2) * sum(gdir^2))))
+W2 <- R2$directions[1:2, , drop = FALSE]
+aa <- vapply(colnames(W2), function(q) angl(W2[, q]), numeric(1))
+an <- aa[grepl("^noise", names(aa))]
+cat(sprintf(paste0(
+  "Measured from the figure's own coordinates: **tumour stage sits %.0f\u00b0 from ",
+  "the dashed line**, while the five noise columns land at %.0f\u00b0, %.0f\u00b0, ",
+  "%.0f\u00b0, %.0f\u00b0 and %.0f\u00b0. %s\n"),
+  aa[["stage_score"]], an[1], an[2], an[3], an[4], an[5],
+  if (aa[["stage_score"]] < min(an))
+    paste0("Stage is closer to the group direction than **every** noise draw -- ",
+           "which is the comparison that matters, and it is the one the single ",
+           "number `T` failed to make.")
+  else
+    paste0("\u26a0\ufe0f At least one noise draw lies as close to the group ",
+           "direction as tumour stage does. That is not a defect in the figure: ",
+           "with this sample size a random vector can fall anywhere, which is ",
+           "precisely why one control column is never enough.")))
+```
+
+**And something the numbers do not tell you.** Look at how much the ellipses
+overlap. Stage has a direction in this space, but the groups are not separated
+along it -- individual patients of different stages are thoroughly mixed. A
+clinician takes that in immediately, and it tempers the reading in a way no single
+coefficient can: a real but weak gradient, not a clean separation.
+
+With more than two components, call `plot(..., comps = c(1, 3))` and so on. Three
+dimensions have to be rotated to be read and do not survive a printed page; beyond
+three there is nothing to rotate.
+
+## Which participants is it coming from?
+
+The per-block profile says *which data type* carries the sensitivity. There is a
+second cut of exactly the same quantity: `S_total` is a sum over **individuals**
+as much as over blocks, and `by_individual` reports the per-participant terms of
+that sum. Same arithmetic, different axis.
+
+```{r acc_ind_head, eval=have_acc}
+bi <- sens_acc$by_individual
+head(bi[bi$query == "stage_score", ], 4)
+```
+
+One row per participant, per block, per query. `S_total` is that participant's
+contribution to that block's sensitivity; `share_total` is the same thing as a
+fraction of the block total, so within one query and block the shares add to one.
+
+⚠️ **Key this table by `query`, `id` and `block`, never by row position.** Row
+order is not part of the contract. It is the same discipline the query itself is
+held to, and for the same reason: a positional read produces a plausible number
+rather than an error.
+
+⚠️ **`S_between` is a property of the group, not of the person.** The
+between-group part of the sensitivity is built from group means, so every member
+of a group carries the identical value -- here twelve distinct numbers for four
+stages times three assays, repeated across the participants in each:
+
+```{r acc_ind_between, eval=have_acc}
+length(unique(bi$S_between[bi$query == "stage_score"]))   # 4 stages x 3 assays
+```
+
+So read `S_total` per participant, and `S_between` as the group's contribution
+carried in each of its members' rows. Ranking individuals by `S_between` ranks
+their groups, which is a different statement.
+
+⚠️ **The rows are the participants of the *grouped* set, not of the fit.**
+Anyone the grouping does not cover is not in the calculation at all, so the
+numbers are conditional on that set:
+
+```{r acc_ind_rows, eval=have_acc}
+length(unique(bi$id))          # participants in the decomposition
+nrow(acc$Y)                    # participants in the fit
+sum(is.na(stage))              # not covered by the grouping
+```
+
+That is a change of question, not a defect. A grouping covering fewer people
+gives different contributions because it is a different conditioning set.
+
+`summary()` prints the leading participants for every query, next to the
+per-block table they decompose:
+
+```{r acc_ind_summary, eval=have_acc}
+summary(sens_acc)
+```
+
+And the whole distribution is easier seen than tabulated:
+
+```{r acc_ind_plot, eval=have_acc, fig.wide=TRUE, fig.height=9, dpi=120, fig.cap="One panel per query. Bars are stacked by assay, and the pale bar at the foot of each panel is everyone outside the top ten."}
+plot(sens_acc, type = "individuals", top_n = 10)
+```
+
+**How to read this figure.** One bar per participant, stacked by assay, so you
+see who carries the sensitivity and which assay it reaches them through at the
+same time. Compare the real query against its noise controls: a query whose
+sensitivity rests on a handful of people looks very different from one spread
+evenly across the cohort, and that difference is invisible in `S_total` alone.
+
+**The pale "all others" bar is the point of the figure, not decoration.** A
+top-N chart without the remainder silently overstates concentration -- ten tall
+bars look like the whole story whether they carry most of the total or a tenth
+of it. Drawn together, the comparison is immediate:
+
+```{r acc_ind_conc, eval=have_acc}
+d   <- bi[bi$query == "stage_score", ]
+per <- sort(rowsum(d$S_total, d$id)[, 1], decreasing = TRUE)
+# `top_n` only changes how many bars are named; the remainder bar absorbs the
+# rest either way, so the panel always accounts for the full total.
+round(c(top10 = sum(head(per, 10)), all_others = sum(per[-(1:10)])) / sum(per), 3)
+```
+
+⚠️ **Participants absent from a block contribute a numerical zero there, not an
+exact one.** `miniACC` is full of them -- most participants are missing from at least
+one assay -- and their contribution to that assay comes back at the scale of
+rounding error rather than at `0`:
+
+```{r acc_ind_absent, eval=have_acc}
+range(d$S_total[d$S_total < 1e-20])
+```
+
+They are deliberately not rounded down: the value is defined, it simply happens
+to be negligible, and thresholding it would hide the difference between "absent"
+and "present and unimportant".
+
+**What these per-participant numbers are, and what they are not.** They are an
+**exploratory** decomposition of the first-order sensitivity diagnostic. The
+block-level quantity they decompose has empirical calibration evidence, with a
+MIXTO verdict; **no individual-level calibration has been established**, and the
+block-level evidence does not transfer to the individual level on its own. They
+are sensitivity contributions -- **not** variance, not uncertainty, not causal
+influence, and not a guarantee of correctness or reliability for any participant.
+A large bar says the fitted alignment is more sensitive to that participant's
+measurements under this configuration; it says nothing about that person, and it
+does not rank people in any way that survives a change of fit, ridge, query,
+block or grouping.
+
+Read this view as a **diagnostic pointer**: if one or two participants carry a
+large share of a finding, that is worth looking at -- an outlying sample, a
+processing anomaly -- before the finding is reported as a property of the cohort.
+
+# Would I get the same answer with a different sample? {#is-the-subspace-reproducible}
+
+`mgcca_stability()` refits on resamples and measures how far the subspace moves.
+`"subsample"` needs no grouping; `"loco"` leaves out one level of `group` at a
+time -- the generic form of leave-one-cohort-out.
+
+Two columns come back, and the second is the one that gets misread.
+
+`overlap` is the agreement with the reference subspace, computed **on the
+participants both fits contain**. One means the same directions; lower means they
+moved.
+
+`rank_margin` is *not* a measure of how well separated the components are. It is
+the smallest singular value of the reference frame once restricted to the shared
+participants, and it asks whether the comparison is well posed at all: if the
+frame becomes near-degenerate under restriction, a high overlap is comparing
+directions barely present in the shared set and means very little. An orthonormal
+frame has every singular value equal to one, so a value well below one is the
+warning, not the reassurance.
+
+Both outcomes are worth seeing, so this section shows one of each rather than
+picking the flattering one.
+
+## A result you can lean on
+
+The cardiovascular fit has 646 individuals. Holding out 10% of them at a time:
+
+```{r cardio_stab}
+stab_ok <- mgcca_stability(fit, B = 30, fraction = 0.90, seed = 1)
+stab_ok
+```
+
+```{r cardio_stab_read, echo=FALSE, results='asis'}
+s1 <- stab_ok$summary_metrics
+cat(sprintf(paste0(
+  "Worst case %.4f over %d resamples, with a rank margin of %.4f. Read that as: ",
+  "had you recruited a somewhat different set of individuals, you would have ",
+  "recovered the same axes, and the comparison itself was well posed throughout. ",
+  "This is what it looks like when a result does not depend on who happened to be ",
+  "sampled.\n"),
+  s1$overlap_min, s1$n_resamples, s1$rank_margin_min))
+```
+
+## A result you cannot
+
+```{r acc_stab, eval=have_acc}
+stab <- mgcca_stability(acc, method = "both", group = stage,
+                        B = 40, fraction = 0.632, seed = 1)
+stab
+```
+
+```{r acc_stab_read, eval=have_acc, echo=FALSE, results='asis'}
+sm <- stab$summary_metrics
+ss <- sm[sm$method == "subsample", ]; lo <- sm[sm$method == "loco", ]
+# The verdict is DERIVED from the number, never printed beside it. A canned
+# sentence that says "essentially the same axes" whatever the minimum turns out
+# to be is not a reading: it is decoration sitting next to data, and sooner or
+# later it contradicts the figure above it.
+verdict <- function(x) {
+  if (x >= 0.99) return("the axes are effectively unchanged")
+  if (x >= 0.95) return("the axes move only slightly")
+  if (x >= 0.80) return("the axes move noticeably, so individual directions should be interpreted with care")
+  "the axes are NOT stable here, and individual directions should not be interpreted"
+}
+loco_line <- if (lo$overlap_min >= 0.95) {
+  "no single group is holding the result up on its own."
+} else {
+  "at least one group matters a good deal, and dropping it moves the axes appreciably."
+}
+cat(sprintf(paste0(
+  "Here the median is %.4f but the worst case is %.4f. At the median, %s. ",
+  "**The worst case is the number that matters**, and at %.4f, %s.\n\n",
+  "Leaving out an entire stage group at a time gives a worst case of %.4f: %s\n\n",
+  "This is not a defect of the data. `miniACC` has 80 patients, and a third of ",
+  "them removed at once is a large perturbation for a sample that size. The point ",
+  "is that the diagnostic *said so* instead of returning a comfortable number.\n"),
+  ss$overlap_median, ss$overlap_min, verdict(ss$overlap_median),
+  ss$overlap_min, verdict(ss$overlap_min), lo$overlap_min, loco_line))
+```
+
+```{r acc_stab_plot, eval=have_acc, fig.height=4.2}
+plot(stab)
+```
+
+Plotting overlap against rank margin makes the caution explicit: the points to
+distrust are the ones on the left, whatever their height.
+
+## What made the difference
+
+The difference is not that one data set is good and the other bad. It is how hard
+each was pushed, and how much sample there was to absorb it.
+
+```{r sweep, echo=FALSE}
+sw <- do.call(rbind, lapply(c(0.632, 0.80, 0.90, 0.95), function(f) {
+  m <- mgcca_stability(fit, B = 20, fraction = f, seed = 1)$summary_metrics
+  data.frame(fraction = f, worst_overlap = round(m$overlap_min, 4),
+             median_overlap = round(m$overlap_median, 4),
+             worst_rank_margin = round(m$rank_margin_min, 4))
+}))
+knitr::kable(sw, caption = "Cardiovascular fit: the same data at four resampling severities.")
+```
+
+Two things to take from this table.
+
+The first is that **stability is a property of the data *and* of the question you
+ask of it**. Reporting an overlap without the fraction it was computed at says
+almost nothing.
+
+The second is the useful one: **the rank margin falls alongside the overlap**.
+When the resamples get small enough for the axes to move, the reference frame
+also becomes ill-conditioned on the shared participants -- so the diagnostic
+warns you that the comparison is degrading at the same time as it degrades. You
+are not left to guess whether a low overlap means real instability or an
+ill-posed comparison; the two columns together tell you.
+
+# Practical matters
+
+## Where the computation happens
+
+`backend = "auto"` decides by block size, exactly as `mgcca(route = "auto")`
+does, but `"memory"` and `"hdf5"` force the choice. The backend that ran is
+recorded in the result, so a number is never ambiguous about how it was produced.
+
+```{r backend, eval=FALSE}
+mgcca_sensitivity(acc, Q, group = stage, backend = "hdf5")
+```
+
+`block_size` forces the out-of-core block size. Its normal value is `0` (let
+`BigDataStatMeth` choose); a small positive value exists so the blocked path can
+be exercised on small data, which is how the package tests it.
+
+## Keeping your results
+
+Persistence is opt-in. An analysis function should not write to your file unasked,
+particularly when the fit may be shared or read-only.
+
+```{r store, eval=FALSE}
+sens_acc <- mgcca_sensitivity(acc, Q, group = stage,
+                              store = TRUE, store_name = "stage_sensitivity")
+```
+
+Results go under `RELIABILITY/<name>/` in the fit's own HDF5 file, with the same
+attribute manifest the package uses elsewhere. An existing name is **refused**
+rather than overwritten: two runs with different settings under one name would
+leave a manifest that no longer describes the data beside it, and nothing
+downstream could detect that.
+
+## What you can and cannot claim
+
+These are first-order sensitivity coefficients of a fitted operator, under the
+scaling, weighting and availability conventions of the fit that produced them.
+They support statements about *where a query's alignment is sensitive*, and about
+*whether a subspace is reproducible*. They do not support causal statements, and
+a high `R_between` does not by itself mean an association is an artefact -- it
+means the alignment and the grouping move together in this fit.
+
+When the retained and discarded parts of the spectrum are not separated, the
+first-order expansion is not meaningful at all. The result carries a validity flag
+and the print method says so rather than letting the numbers stand unqualified.
+
+# Session information
+
+```{r session}
+sessionInfo()
+```

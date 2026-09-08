@@ -2,7 +2,7 @@
 % Please edit documentation in R/plotInds.R
 \name{plotInds}
 \alias{plotInds}
-\title{Plot variables correlations with shared canonical components}
+\title{Base-R scatter plot of the individuals on the shared components}
 \usage{
 plotInds(
   x,
@@ -19,7 +19,61 @@ plotInds(
 }
 \arguments{
 \item{x}{an object of class 'mgcca'}
+
+\item{group}{optional factor giving the group of each individual, in the row
+order of \code{x$Y}. When omitted every individual is put in a single
+group and no legend is drawn.}
+
+\item{ax1, ax2}{the components on the horizontal and vertical axes. Defaults 1
+and 2.}
+
+\item{col.list}{vector of colours, one per level of \code{group}. When
+omitted a built-in palette is used; it must be at least as long as the
+number of levels.}
+
+\item{print.labels}{logical; when \code{TRUE} the individual names are
+written instead of plotting points (using \pkg{wordcloud} to spread the
+labels out when that package is available). Default \code{FALSE}.}
+
+\item{cex.label}{character expansion for those labels. Default 0.8.}
+
+\item{pos.leg}{position of the legend, as in \code{\link[graphics]{legend}}.
+Default \code{"bottomright"}.}
+
+\item{main}{plot title. Default \code{NULL}.}
+
+\item{...}{further graphical arguments passed to \code{\link[graphics]{plot}}.}
+}
+\value{
+No return value; called for the plot it draws on the current
+  graphics device.
 }
 \description{
-Plot variables correlations with shared canonical components
+Draws the individuals in the plane of two shared canonical
+  components, optionally coloured by a grouping factor and labelled with the
+  individual identifiers. This is the original base-graphics plot;
+  \code{\link{plotIndividuals}} is the modern replacement and returns a
+  \code{ggplot} object instead of drawing on the current device.
+}
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+plotInds(fit, main = "Individuals")
+
+## coloured by an arbitrary two-level grouping
+grp <- factor(rep(c("a", "b"), length.out = nrow(fit$Y)))
+plotInds(fit, group = grp, col.list = c("steelblue", "tomato"))
+}
+\seealso{
+\code{\link{plotIndividuals}}, \code{\link{plotVars}}
 }

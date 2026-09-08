@@ -5,14 +5,20 @@
 \alias{mgcca-package}
 \title{mgcca: Generalized Canonical Correlation Analysis with missing individuals}
 \description{
-Generalized Canonical Correlation Analysis (van de Velden and Takane, 2012)
-for multi-block omics integration, running its numerical core in C++ on HDF5
-files via the BigDataStatMeth API. See \code{\link{mgcca}} to get started.
+Generalized Canonical Correlation Analysis for tables with missing
+individuals (whole missing rows; van de Velden and Bijmolt, 2006) for
+multi-block omics integration, running its numerical core in C++ on HDF5
+files via the BigDataStatMeth API. Missing cells within a measured
+individual are outside the estimator's scope and must be handled before
+import. See \code{\link{mgcca}} to get started.
 }
 \seealso{
 Useful links:
 \itemize{
+  \item \url{https://isglobal-brge.github.io/mgcca/}
+  \item \url{https://github.com/isglobal-brge/mgcca}
   \item \url{http://brge.isglobal.org}
+  \item Report bugs at \url{https://github.com/isglobal-brge/mgcca/issues}
 }
 
 }

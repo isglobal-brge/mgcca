@@ -4,13 +4,25 @@
 \alias{print.listMAE}
 \title{Print method for 'listMAE' objects}
 \usage{
-\method{print}{listMAE}(listMAE)
+\method{print}{listMAE}(x, ...)
 }
 \arguments{
-\item{listMAE}{Object of class 'listMAE'.}
+\item{x}{Object of class \code{"listMAE"}.}
 
 \item{...}{Further arguments (ignored).}
 }
+\value{
+Invisibly the assay names of \code{x}; called for the side effect of
+  printing the summary.
+}
 \description{
-Compact print for a MultiAssayExperiment-like list.
+Compact print for a MultiAssayExperiment-like list, as returned
+  by \code{\link{getTables}}: reports the class, the number of assays and
+  their names.
+}
+\examples{
+obj <- structure(list(a = matrix(1:4, 2), b = matrix(1:6, 2)),
+                 class = "listMAE")
+print(obj)
+
 }

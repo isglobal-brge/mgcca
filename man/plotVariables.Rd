@@ -29,6 +29,25 @@ For a chosen table, draws the correlation of each variable with
   are drawn as labelled arrows, so the plot stays readable even for
   omics-scale tables; the rest are shown as faint points.
 }
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+## the clinical table has few variables: label them all
+plotVariables(fit, table = "clinical", top = 6)
+
+## on an omics-scale table only the leading variables are labelled
+plotVariables(fit, table = 1, top = 5)
+}
 \seealso{
 \code{\link{plotIndividuals}}, \code{\link{getSignif}}
 }

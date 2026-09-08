@@ -26,6 +26,29 @@ Applies the per-table weights learned by \code{\link{mgcca}} to
   consistent with the fit. Requires a fit produced with \code{scores = TRUE}
   (weights) and \code{scale = TRUE} (scaling parameters).
 }
+\examples{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+num <- function(d, keep, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% keep, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+train <- ids[1:150]
+test  <- ids[151:180]
+X  <- list(methylation = num(X1, train, 1:20), clinical = num(X2, train),
+           other = num(X3, train))
+Xn <- list(methylation = num(X1, test, 1:20), clinical = num(X2, test),
+           other = num(X3, test))
+
+## weights (scores = TRUE) and scaling (scale = TRUE) are what a
+## projection needs; both are on by default except for scores.
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+             scores = TRUE)
+proj <- predict(fit, newdata = Xn)
+vapply(proj, nrow, integer(1))
+head(proj$clinical)
+}
 \seealso{
 \code{\link{mgcca}}, \code{\link{plotScores}}
 }

@@ -44,6 +44,28 @@ Builds a null distribution for the mgcca eigenvalues by breaking
   uninformative. Re-fits the model \code{nperm} times, so use it on modest data
   (or a feature subset).
 }
+\examples{
+## Each permutation is a full file-backed re-fit, so even a token number of
+## them takes tens of seconds; the example is kept out of the check budget.
+\donttest{
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:60]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = num(X1, 1:4), clinical = num(X2, 1:4),
+          other = num(X3, 1:4))
+
+h5 <- tempfile(fileext = ".h5")
+pt <- mgcca_permtest(X, filename = h5, nperm = 9, nfac = 2,
+                     method = "penalized", lambda = rep(0.1, 3))
+pt$eigenvalues
+pt$p.value          # nperm = 9 bounds these below at 0.1
+unlink(h5)
+}
+}
 \seealso{
 \code{\link{mgcca_associate}}
 }

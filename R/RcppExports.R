@@ -2,9 +2,13 @@
 # Generator token: 10BE3573-1514-4C36-9D1C-5A225CD40393
 
 #' MGCCA XKX stage (Mgram=X'X, inverse, Mi=X xkx X') over HDF5
+#' @return A list with the stage descriptor (\code{filename}, \code{tmp_group},
+#'   \code{datasets}, \code{inv_method}), or \code{NULL} on error. The results
+#'   themselves (per-table \code{Mgram}, its inverse and \code{Mi}) are written
+#'   into \code{tmp_group} of the HDF5 file.
 #' @keywords internal
 mgcca_XKX_rcpp <- function(filename, tmp_group, datasets, inv_method, lambda = NULL, threads = NULL) {
-    .Call('_mgcca_mgcca_XKX_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, inv_method, lambda, threads)
+    .Call(`_mgcca_mgcca_XKX_rcpp`, filename, tmp_group, datasets, inv_method, lambda, threads)
 }
 
 #' Write HDF5 attributes to a dataset or group
@@ -19,9 +23,11 @@ mgcca_XKX_rcpp <- function(filename, tmp_group, datasets, inv_method, lambda = N
 #' @param group Group path (target group, or the parent group of the dataset).
 #' @param dataset Dataset name, or "" to target the group itself.
 #' @param attrs Named list of attribute values.
+#' @return Invisibly \code{NULL}; called for the side effect of writing the
+#'   attributes into the HDF5 file.
 #' @keywords internal
 mgcca_write_attrs_rcpp <- function(filename, group, dataset, attrs) {
-    invisible(.Call('_mgcca_mgcca_write_attrs_rcpp', PACKAGE = 'mgcca', filename, group, dataset, attrs))
+    invisible(.Call(`_mgcca_mgcca_write_attrs_rcpp`, filename, group, dataset, attrs))
 }
 
 #' Read all HDF5 attributes from a dataset or group
@@ -37,7 +43,7 @@ mgcca_write_attrs_rcpp <- function(filename, group, dataset, attrs) {
 #' @return Named list of attribute values.
 #' @keywords internal
 mgcca_read_attrs_rcpp <- function(filename, group, dataset) {
-    .Call('_mgcca_mgcca_read_attrs_rcpp', PACKAGE = 'mgcca', filename, group, dataset)
+    .Call(`_mgcca_mgcca_read_attrs_rcpp`, filename, group, dataset)
 }
 
 #' List the immediate children of an HDF5 group
@@ -52,25 +58,35 @@ mgcca_read_attrs_rcpp <- function(filename, group, dataset) {
 #' @return Character vector of child object names.
 #' @keywords internal
 mgcca_list_group_rcpp <- function(filename, group) {
-    .Call('_mgcca_mgcca_list_group_rcpp', PACKAGE = 'mgcca', filename, group)
+    .Call(`_mgcca_mgcca_list_group_rcpp`, filename, group)
 }
 
 #' MGCCA corsY / p-values / AVE stage over HDF5
+#' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+#'   error. The results (\code{corsY}, \code{pval}, \code{AVE}) are written into
+#'   \code{final_group} of the HDF5 file.
 #' @keywords internal
 mgcca_cor_ave_rcpp <- function(filename, tmp_group, datasets, nfac, final_group = "FINAL_RESULTS") {
-    .Call('_mgcca_mgcca_cor_ave_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, nfac, final_group)
+    .Call(`_mgcca_mgcca_cor_ave_rcpp`, filename, tmp_group, datasets, nfac, final_group)
 }
 
 #' MGCCA eigen stage (Ksum, MKsum05, eigen, Y) over HDF5
+#' @return A list with the stage descriptor (\code{filename}, \code{nfac},
+#'   \code{eig_values}, \code{Y_path}), or \code{NULL} on error. The shared
+#'   components \code{Y} are written into \code{final_group} of the HDF5 file.
 #' @keywords internal
 mgcca_eigen_rcpp <- function(filename, tmp_group, datasets, nfac, final_group = "FINAL_RESULTS", threads = NULL) {
-    .Call('_mgcca_mgcca_eigen_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, nfac, final_group, threads)
+    .Call(`_mgcca_mgcca_eigen_rcpp`, filename, tmp_group, datasets, nfac, final_group, threads)
 }
 
 #' MGCCA getK stage (build padded X and indicator diagonal K) over HDF5
+#' @return A list with the stage descriptor (\code{filename}, \code{out_group},
+#'   \code{datasets}, \code{m}, \code{rn}), or \code{NULL} on error. The
+#'   union-padded tables and their indicator diagonals are written into
+#'   \code{out_group} of the HDF5 file.
 #' @keywords internal
 mgcca_getK_rcpp <- function(filename, in_group, datasets, out_group = "MGCCA_TMP") {
-    .Call('_mgcca_mgcca_getK_rcpp', PACKAGE = 'mgcca', filename, in_group, datasets, out_group)
+    .Call(`_mgcca_mgcca_getK_rcpp`, filename, in_group, datasets, out_group)
 }
 
 #' MGCCA over HDF5 (single-call C++ orchestrator)
@@ -96,26 +112,163 @@ mgcca_getK_rcpp <- function(filename, in_group, datasets, out_group = "MGCCA_TMP
 #' @return A descriptor list (filename, datasets, nfac, m, eigenvalues, route,
 #'   route_dual, final_group). Results are written under \code{final_group}.
 #' @seealso \code{\link{mgcca}}, \code{\link{mgcca_results}}
-#' @export
+#' @keywords internal
 mgcca_rcpp <- function(filename, in_group, datasets, nfac, inv_method, lambda = NULL, scores = FALSE, scale = TRUE, route = "auto", tmp_group = "MGCCA_TMP", final_group = "FINAL_RESULTS", threads = NULL) {
-    .Call('_mgcca_mgcca_rcpp', PACKAGE = 'mgcca', filename, in_group, datasets, nfac, inv_method, lambda, scores, scale, route, tmp_group, final_group, threads)
+    .Call(`_mgcca_mgcca_rcpp`, filename, in_group, datasets, nfac, inv_method, lambda, scores, scale, route, tmp_group, final_group, threads)
+}
+
+#' K1: present-only, feature-streamed participant block Gram (HDF5)
+#' @return A list with the participant Gram \code{G} and its \code{ids}, the
+#'   effective sizes (\code{p_eff}, \code{n_pr}, \code{N_all}), the streaming
+#'   layout (\code{chunk}, \code{n_chunks}, \code{last_chunk},
+#'   \code{eigen_threads}) and the \code{invariants} / \code{ledger}
+#'   diagnostics of the accumulation.
+#' @keywords internal
+reliability_gram_hdf5 <- function(file, group, dataset, present_ids, chunk, var_eps = 1e-8, out_file = "", out_group = "", out_dataset = "", out_compression = 0L) {
+    .Call(`_mgcca_reliability_gram_hdf5`, file, group, dataset, present_ids, chunk, var_eps, out_file, out_group, out_dataset, out_compression)
+}
+
+#' Present-only participant Gram of one block, out-of-core (reliability phase R1)
+#'
+#' @param block_size 0 lets BigDataStatMeth choose; a positive value FORCES that
+#'   block size, so the blocked path can be exercised on small fixtures.
+#' @return A list with \code{filename}, the \code{path} of the Gram written into
+#'   the HDF5 file, the participant \code{ids}, the \code{block_size} actually
+#'   used and whether the block was \code{standardized}.
+#' @keywords internal
+reliability_gram_block <- function(filename, in_group, dataset, out_group, block_size = 0L, threads = NULL, standardize = TRUE) {
+    .Call(`_mgcca_reliability_gram_block`, filename, in_group, dataset, out_group, block_size, threads, standardize)
+}
+
+#' Weighted operator, eigenbasis and per-block resolvents (reliability phase R2)
+#' @return A list with the retained eigenbasis \code{V}, the eigenvalues
+#'   \code{D}, the spectral \code{gap} at the retained rank and that rank
+#'   \code{L}.
+#' @keywords internal
+reliability_reference_fit <- function(Glist, present, lambda, L) {
+    .Call(`_mgcca_reliability_reference_fit`, Glist, present, lambda, L)
+}
+
+#' Per-block inputs for the sealed sensitivity kernel (phase R3b)
+#'
+#' Rr_j = R_j D V_L and Sm_j = R_j D V_R. Kept in C++ so the algebra lives in one
+#' place; R only dispatches.
+#' @return A list with the two per-block input matrices \code{Rr}
+#'   (\eqn{R_j D V_L}) and \code{Sm} (\eqn{R_j D V_R}).
+#' @keywords internal
+reliability_block_inputs <- function(Rj, D, V, L) {
+    .Call(`_mgcca_reliability_block_inputs`, Rj, D, V, L)
+}
+
+#' Alignment functional and first-order perturbation coefficients (phase R3)
+#' @return A list with the alignment functional \code{T}, the first-order
+#'   perturbation coefficients \code{C} and the per-component weights \code{w}.
+#' @keywords internal
+reliability_query <- function(V, mu, zstar, L) {
+    .Call(`_mgcca_reliability_query`, V, mu, zstar, L)
+}
+
+#' K2: methylation sensitivity accumulators from the sealed K1 Gram (participant-space)
+#' @return A list with the sensitivity accumulators \code{trtH} and \code{accX},
+#'   the symmetry residual \code{sym_err} and the sizes \code{n_pr},
+#'   \code{n_meth}, \code{n_grp}.
+#' @keywords internal
+reliability_sensitivity_gram <- function(file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol = 1e-8) {
+    .Call(`_mgcca_reliability_sensitivity_gram`, file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol)
+}
+
+#' K3b variant-C Gram-C block (HDF5-in/HDF5-out via BigDataStatMeth): H*G[O,O]*H embedded
+#' @return A list with the \code{file} and the \code{path} of the centred
+#'   Gram-C block written into the HDF5 file.
+#' @keywords internal
+reliability_gramc_block_hdf5 <- function(file, in_group, ds_in, out_group, ds_out, present, comp = 0L) {
+    .Call(`_mgcca_reliability_gramc_block_hdf5`, file, in_group, ds_in, out_group, ds_out, present, comp)
+}
+
+#' K3b variant-C Gram-C block (in-memory, for unit smoke of the centring math)
+#' @return A numeric matrix: the centred Gram-C block \eqn{H G[O,O] H} embedded
+#'   back into the full participant indexing.
+#' @keywords internal
+reliability_gramc_block_mem <- function(Gsid, present) {
+    .Call(`_mgcca_reliability_gramc_block_mem`, Gsid, present)
+}
+
+#' K3b subspace overlap ovl_rows (frozen rank_tol): mean cos^2 of principal angles; NA if rank-deficient
+#' @return A single number: the mean squared cosine of the principal angles
+#'   between the two subspaces, or \code{NA} if either basis is rank-deficient.
+#' @keywords internal
+reliability_subspace_overlap <- function(Va, Vb) {
+    .Call(`_mgcca_reliability_subspace_overlap`, Va, Vb)
+}
+
+#' K3b projector overlap trPP = tr(Pa Pb)/L
+#' @return A single number: \eqn{tr(P_a P_b)/L}, the projector overlap of the
+#'   two subspaces.
+#' @keywords internal
+reliability_proj_overlap <- function(Pa, Pb, L) {
+    .Call(`_mgcca_reliability_proj_overlap`, Pa, Pb, L)
+}
+
+#' K3b variant-A small-block Gram via the BigDataStatMeth C++ tcrossprod API: G = Z Z' (participant Gram).
+#' Z (in_group/in_ds) = the subset-standardised block table (participants x features, R view). G is written to
+#' out_group/out_ds (n x n), isSymmetric -- VERBATIM the sealed estimator run_svd/run_XKX pattern
+#' (mgcca_phases.h). BigDataStatMeth::tcrossprod is ADAPTIVE (PATH 1 in-memory preload if A <= ~20% RAM /
+#' PATH 2 block-wise streaming otherwise, r244 §1), not unconditionally out-of-core. No R-side BigDataStatMeth
+#' algebra dispatch enters the certified small-block Gram path (r242 §2 / r248 §3, PORT_FOURTH_KERNEL §H).
+#' Returns file, path, nrow, ncol, block_size, threads_requested (n = participants; for binding + the parity report).
+#' @return A list with \code{file}, the \code{path} of the Gram written into the
+#'   HDF5 file, its \code{nrow} and \code{ncol}, the \code{block_size} and
+#'   \code{threads_requested} (for binding and the parity report).
+#' @keywords internal
+reliability_tcrossprod_hdf5 <- function(file, in_group, in_ds, out_group, out_ds, threads = NULL) {
+    .Call(`_mgcca_reliability_tcrossprod_hdf5`, file, in_group, in_ds, out_group, out_ds, threads)
+}
+
+#' K3a: top-L balanced subspace refit from block Grams (participant-space, dense Eigen core)
+#' @return A list with the refitted basis \code{V} and projector \code{P}, the
+#'   retained rank \code{L}, the balancing weights \code{lambda}, the spectrum
+#'   \code{mu} and its \code{gap}, the \code{eligible} participants and the
+#'   numerical validity flags (\code{solve_ok}, \code{symSbal}, \code{P_idem},
+#'   \code{eig_min}, \code{n_clipped}, ...).
+#' @keywords internal
+reliability_subspace_fit <- function(file, group, gram_ds, masks, L, gamma, eps = 1e-8, rank_tol = 1e-8, sym_tol = 1e-8, pad_tol = 1e-8, return_B = TRUE) {
+    .Call(`_mgcca_reliability_subspace_fit`, file, group, gram_ds, masks, L, gamma, eps, rank_tol, sym_tol, pad_tol, return_B)
+}
+
+#' K3a orientation check: read an HDF5 dataset via the EXACT helper the kernel uses (mgcca::read_full)
+#' so an asymmetric fixture can prove no hidden transpose (r198 §4).
+#' @return A numeric matrix: the HDF5 dataset read back in the R view through the
+#'   kernel's own reader.
+#' @keywords internal
+reliability_read_full_test <- function(file, group, dataset) {
+    .Call(`_mgcca_reliability_read_full_test`, file, group, dataset)
 }
 
 #' MGCCA scores stage (A=B_j, weights, scores) over HDF5
+#' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+#'   error. The per-table weights and scores are written into \code{final_group}
+#'   of the HDF5 file.
 #' @keywords internal
 mgcca_scores_rcpp <- function(filename, tmp_group, datasets, nfac, final_group = "FINAL_RESULTS") {
-    .Call('_mgcca_mgcca_scores_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, nfac, final_group)
+    .Call(`_mgcca_mgcca_scores_rcpp`, filename, tmp_group, datasets, nfac, final_group)
 }
 
 #' MGCCA dual scores stage (A=V diag(w_A) U'Y, weights, scores) over HDF5
+#' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
+#'   error. The per-table weights and scores are written into \code{final_group}
+#'   of the HDF5 file.
 #' @keywords internal
 mgcca_scores_svd_rcpp <- function(filename, tmp_group, datasets, inv_method, nfac, lambda = NULL, final_group = "FINAL_RESULTS") {
-    .Call('_mgcca_mgcca_scores_svd_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, inv_method, nfac, lambda, final_group)
+    .Call(`_mgcca_mgcca_scores_svd_rcpp`, filename, tmp_group, datasets, inv_method, nfac, lambda, final_group)
 }
 
 #' MGCCA dual SVD stage: M_j = U diag(w) U' from SVD(X_j)
+#' @return A list with the stage descriptor (\code{filename}, \code{tmp_group},
+#'   \code{datasets}, \code{inv_method}, \code{svd_method}), or \code{NULL} on
+#'   error. The per-table dual projectors are written into \code{tmp_group} of
+#'   the HDF5 file.
 #' @keywords internal
 mgcca_svd_rcpp <- function(filename, tmp_group, datasets, inv_method, lambda = NULL, svd_method = "full", threads = NULL) {
-    .Call('_mgcca_mgcca_svd_rcpp', PACKAGE = 'mgcca', filename, tmp_group, datasets, inv_method, lambda, svd_method, threads)
+    .Call(`_mgcca_mgcca_svd_rcpp`, filename, tmp_group, datasets, inv_method, lambda, svd_method, threads)
 }
 

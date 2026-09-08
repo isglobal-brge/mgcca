@@ -21,10 +21,27 @@
 #'   individuals) and \code{p.adj} (Benjamini-Hochberg across all rows).
 #' @seealso \code{\link{plotIndividuals}}, \code{\link{mgcca_permtest}}
 #' @examples
-#' \dontrun{
-#' a <- mgcca_associate(fit, list(stage = stage, sex = sex))
-#' a[a$p.adj < 0.05, ]
+#' data(cardiovascular)
+#' ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:150]
+#' num <- function(d, cols = seq_len(ncol(d))) {
+#'     m <- as.matrix(d[rownames(d) %in% ids, cols, drop = FALSE])
+#'     storage.mode(m) <- "double"
+#'     m
 #' }
+#' X <- list(methylation = num(X1, 1:20), clinical = num(X2), other = num(X3))
+#' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+#'
+#' ## An external annotation, matched to the individuals by row name. Here it
+#' ## is simulated, so the components are not expected to capture it.
+#' set.seed(1)
+#' pheno <- data.frame(
+#'     group = factor(sample(c("case", "control"), nrow(fit$Y), TRUE)),
+#'     age   = rnorm(nrow(fit$Y), 55, 8),
+#'     row.names = rownames(fit$Y))
+#'
+#' a <- mgcca_associate(fit, pheno)
+#' a
+#' a[a$p.adj < 0.05, ]
 #' @export
 mgcca_associate <- function(x, phenotypes, comps = NULL) {
     .check_mgcca(x)
@@ -97,6 +114,27 @@ mgcca_associate <- function(x, phenotypes, comps = NULL) {
 #'   (per component), the \code{null} matrix (\code{nperm} x \code{nfac}) and
 #'   \code{nperm}.
 #' @seealso \code{\link{mgcca_associate}}
+#' @examples
+#' ## Each permutation is a full file-backed re-fit, so even a token number of
+#' ## them takes tens of seconds; the example is kept out of the check budget.
+#' \donttest{
+#' data(cardiovascular)
+#' ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:60]
+#' num <- function(d, cols = seq_len(ncol(d))) {
+#'     m <- as.matrix(d[rownames(d) %in% ids, cols, drop = FALSE])
+#'     storage.mode(m) <- "double"
+#'     m
+#' }
+#' X <- list(methylation = num(X1, 1:4), clinical = num(X2, 1:4),
+#'           other = num(X3, 1:4))
+#'
+#' h5 <- tempfile(fileext = ".h5")
+#' pt <- mgcca_permtest(X, filename = h5, nperm = 9, nfac = 2,
+#'                      method = "penalized", lambda = rep(0.1, 3))
+#' pt$eigenvalues
+#' pt$p.value          # nperm = 9 bounds these below at 0.1
+#' unlink(h5)
+#' }
 #' @export
 mgcca_permtest <- function(x, filename = tempfile(fileext = ".h5"), nperm = 99,
                            nfac = 2, method = "penalized", lambda = NULL,

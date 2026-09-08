@@ -30,10 +30,27 @@ Regresses each shared component on one or more external variables
   result against clinical or technical annotation.
 }
 \examples{
-\dontrun{
-a <- mgcca_associate(fit, list(stage = stage, sex = sex))
-a[a$p.adj < 0.05, ]
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:150]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
 }
+X <- list(methylation = num(X1, 1:20), clinical = num(X2), other = num(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+## An external annotation, matched to the individuals by row name. Here it
+## is simulated, so the components are not expected to capture it.
+set.seed(1)
+pheno <- data.frame(
+    group = factor(sample(c("case", "control"), nrow(fit$Y), TRUE)),
+    age   = rnorm(nrow(fit$Y), 55, 8),
+    row.names = rownames(fit$Y))
+
+a <- mgcca_associate(fit, pheno)
+a
+a[a$p.adj < 0.05, ]
 }
 \seealso{
 \code{\link{plotIndividuals}}, \code{\link{mgcca_permtest}}

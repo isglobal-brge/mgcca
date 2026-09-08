@@ -15,12 +15,55 @@ impute(
 )
 }
 \arguments{
-\item{method}{...}
+\item{multiassayexperiment}{a \code{MultiAssayExperiment} object whose assays
+are numeric matrices.}
 
-\item{remove.col}{remove cols}
+\item{method}{imputation method, given as a character string; partially
+matched against \code{"knn"} and \code{"hmisc"}. Only \code{"knn"} is
+implemented -- \code{"hmisc"} is accepted but currently leaves the object
+untouched. An unmatched or ambiguous value is an error.}
 
-\item{remove.row}{remove rows}
+\item{remove.col}{logical; when \code{TRUE}, columns with a proportion of
+missing values of \code{colmax} or more are dropped from an assay before it
+is imputed. Default \code{FALSE}.}
+
+\item{impute.zero}{logical; when \code{TRUE}, exact zeros are treated as
+missing values (recoded to \code{NA}) before imputation. Default
+\code{FALSE}.}
+
+\item{rowmax, colmax}{numeric tolerances handed on to
+\code{\link[impute]{impute.knn}}. Note that they are passed positionally,
+so \code{rowmax} reaches \code{impute.knn} as its \code{k} (number of
+neighbours) and \code{colmax} as its \code{rowmax}. Defaults 0.5 and 0.8.}
+
+\item{...}{further arguments passed on to \code{\link[impute]{impute.knn}}.}
+}
+\value{
+The input \code{MultiAssayExperiment} with each assay replaced by its
+  imputed version. When \code{method} matches \code{"hmisc"} the object is
+  returned unchanged, that branch not being implemented.
 }
 \description{
-Imputes each assay matrix data from a MultiAssayExperiment object
+Fills in the missing values of every assay of a
+  \code{MultiAssayExperiment} by k-nearest-neighbour imputation
+  (\code{\link[impute]{impute.knn}}), replacing each assay in place. This is
+  imputation \emph{within} a table (scattered missing entries); it is not the
+  whole-row missingness across tables that \code{\link{mgcca}} handles
+  natively.
+}
+\examples{
+if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
+  data(cardiovascular)
+  sel <- rownames(X2)[1:30]
+  a1 <- t(as.matrix(X1[rownames(X1) \%in\% sel, 1:8, drop = FALSE]))
+  a1[1, 1:3] <- NA                     # a few missing entries to fill in
+  a2 <- t(as.matrix(X2[rownames(X2) \%in\% sel, , drop = FALSE]))
+  mae <- MultiAssayExperiment::MultiAssayExperiment(
+      MultiAssayExperiment::ExperimentList(
+          list(methylation = a1, clinical = a2)))
+
+  anyNA(mae[[1]])
+  mae.imp <- impute(mae, method = "knn")
+  anyNA(mae.imp[[1]])
+}
 }

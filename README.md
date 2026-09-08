@@ -13,7 +13,7 @@
 components, even when the tables describe **overlapping but not identical** sets
 of individuals — the setting of multi-omics integration, where a subject may be
 measured in some layers and not others. Missing individuals are handled
-analytically (van de Velden & Takane), so every individual in the union is
+analytically (van de Velden & Bijmolt, 2006), so every individual in the union is
 represented **without imputation** and **without dropping incomplete cases**.
 
 The numerical core runs entirely in C++ on HDF5 files via the BigDataStatMeth
@@ -134,9 +134,12 @@ vignette and the references below for the formulation.
 
 ## References
 
+- van de Velden, M. and Bijmolt, T.H.A. (2006). *Generalized canonical
+  correlation analysis of matrices with missing rows: a simulation study.*
+  Psychometrika, 71(2), 323-331. The missing-row formulation implemented here.
 - van de Velden, M. and Takane, Y. (2012). *Generalized canonical correlation
-  analysis with missing values.* Computational Statistics.
-- van de Velden, M. (2006). Related GCCA formulation used here.
+  analysis with missing values.* Computational Statistics, 27(3), 551-571.
+  Related extensions for element-level missing values; not implemented here.
 
 ## Citation
 

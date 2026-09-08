@@ -29,11 +29,27 @@ Rebuilds a full \code{"mgcca"} object from a results file written
   returns what it can, with the provenance fields set to \code{NA}.
 }
 \examples{
-\dontrun{
-fit <- mgcca(X, filename = "res.h5", method = "penalized", lambda = c(0.75, 1))
-rm(fit)
-fit2 <- mgcca_load("res.h5")   # same object, straight from disk
+data(cardiovascular)
+ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:100]
+num <- function(d, cols = seq_len(ncol(d))) {
+    m <- as.matrix(d[rownames(d) \%in\% ids, cols, drop = FALSE])
+    storage.mode(m) <- "double"
+    m
 }
+X <- list(methylation = num(X1, 1:10), clinical = num(X2), other = num(X3))
+
+## A file-backed fit. collect = FALSE leaves the results in the file only.
+h5 <- tempfile(fileext = ".h5")
+desc <- mgcca(X, filename = h5, nfac = 2, method = "penalized",
+              lambda = rep(0.1, 3), collect = FALSE)
+rm(desc)
+
+## Rebuilt from the file alone -- provenance included.
+fit <- mgcca_load(h5)
+fit
+attr(fit, "desc")$method
+attr(fit, "desc")$lambda
+unlink(h5)
 }
 \seealso{
 \code{\link{mgcca}}, \code{\link{mgcca_results}}

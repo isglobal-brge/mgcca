@@ -12,6 +12,11 @@ mgcca_scores_rcpp(
   final_group = "FINAL_RESULTS"
 )
 }
+\value{
+A list with the stage descriptor (\code{filename}), or \code{NULL} on
+  error. The per-table weights and scores are written into \code{final_group}
+  of the HDF5 file.
+}
 \description{
 MGCCA scores stage (A=B_j, weights, scores) over HDF5
 }

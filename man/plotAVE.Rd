@@ -19,6 +19,21 @@ The outer-model AVE (\code{AVE_X}) measures how much of each
   table's variance is captured by each shared component. This draws it as a
   grouped bar chart (component on the x axis, one bar per table).
 }
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3))
+
+plotAVE(fit)
+}
 \seealso{
 \code{\link{plotScree}}
 }

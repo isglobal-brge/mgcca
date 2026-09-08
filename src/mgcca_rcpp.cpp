@@ -7,7 +7,7 @@
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]
 #include <BigDataStatMeth.hpp>
-#include "mgcca_phases.hpp"
+#include "mgcca_phases.h"
 using namespace Rcpp;
 
 //' MGCCA over HDF5 (single-call C++ orchestrator)
@@ -33,7 +33,7 @@ using namespace Rcpp;
 //' @return A descriptor list (filename, datasets, nfac, m, eigenvalues, route,
 //'   route_dual, final_group). Results are written under \code{final_group}.
 //' @seealso \code{\link{mgcca}}, \code{\link{mgcca_results}}
-//' @export
+//' @keywords internal
 // [[Rcpp::export]]
 Rcpp::List mgcca_rcpp(std::string filename, std::string in_group,
                       std::vector<std::string> datasets, int nfac, int inv_method,

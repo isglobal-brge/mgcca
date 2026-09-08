@@ -132,6 +132,211 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// reliability_gram_hdf5
+Rcpp::List reliability_gram_hdf5(std::string file, std::string group, std::string dataset, std::vector<std::string> present_ids, int chunk, double var_eps, std::string out_file, std::string out_group, std::string out_dataset, int out_compression);
+RcppExport SEXP _mgcca_reliability_gram_hdf5(SEXP fileSEXP, SEXP groupSEXP, SEXP datasetSEXP, SEXP present_idsSEXP, SEXP chunkSEXP, SEXP var_epsSEXP, SEXP out_fileSEXP, SEXP out_groupSEXP, SEXP out_datasetSEXP, SEXP out_compressionSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset(datasetSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type present_ids(present_idsSEXP);
+    Rcpp::traits::input_parameter< int >::type chunk(chunkSEXP);
+    Rcpp::traits::input_parameter< double >::type var_eps(var_epsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_file(out_fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_group(out_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_dataset(out_datasetSEXP);
+    Rcpp::traits::input_parameter< int >::type out_compression(out_compressionSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_gram_hdf5(file, group, dataset, present_ids, chunk, var_eps, out_file, out_group, out_dataset, out_compression));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_gram_block
+Rcpp::List reliability_gram_block(std::string filename, std::string in_group, std::string dataset, std::string out_group, int block_size, Rcpp::Nullable<int> threads, bool standardize);
+RcppExport SEXP _mgcca_reliability_gram_block(SEXP filenameSEXP, SEXP in_groupSEXP, SEXP datasetSEXP, SEXP out_groupSEXP, SEXP block_sizeSEXP, SEXP threadsSEXP, SEXP standardizeSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type in_group(in_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset(datasetSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_group(out_groupSEXP);
+    Rcpp::traits::input_parameter< int >::type block_size(block_sizeSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type threads(threadsSEXP);
+    Rcpp::traits::input_parameter< bool >::type standardize(standardizeSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_gram_block(filename, in_group, dataset, out_group, block_size, threads, standardize));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_reference_fit
+Rcpp::List reliability_reference_fit(Rcpp::List Glist, Rcpp::List present, Rcpp::NumericVector lambda, int L);
+RcppExport SEXP _mgcca_reliability_reference_fit(SEXP GlistSEXP, SEXP presentSEXP, SEXP lambdaSEXP, SEXP LSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::List >::type Glist(GlistSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type present(presentSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_reference_fit(Glist, present, lambda, L));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_block_inputs
+Rcpp::List reliability_block_inputs(Rcpp::NumericMatrix Rj, Rcpp::NumericVector D, Rcpp::NumericMatrix V, int L);
+RcppExport SEXP _mgcca_reliability_block_inputs(SEXP RjSEXP, SEXP DSEXP, SEXP VSEXP, SEXP LSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Rj(RjSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type D(DSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type V(VSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_block_inputs(Rj, D, V, L));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_query
+Rcpp::List reliability_query(Rcpp::NumericMatrix V, Rcpp::NumericVector mu, Rcpp::NumericVector zstar, int L);
+RcppExport SEXP _mgcca_reliability_query(SEXP VSEXP, SEXP muSEXP, SEXP zstarSEXP, SEXP LSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type V(VSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type mu(muSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type zstar(zstarSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_query(V, mu, zstar, L));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_sensitivity_gram
+Rcpp::List reliability_sensitivity_gram(std::string file, std::string group, std::string dataset, Rcpp::IntegerVector mids_to_fit, Rcpp::NumericMatrix Rr, Rcpp::NumericMatrix Sm, Rcpp::NumericMatrix C, double alpha, Rcpp::LogicalVector present, Rcpp::IntegerVector prm, Rcpp::IntegerVector grp, double neg_tol);
+RcppExport SEXP _mgcca_reliability_sensitivity_gram(SEXP fileSEXP, SEXP groupSEXP, SEXP datasetSEXP, SEXP mids_to_fitSEXP, SEXP RrSEXP, SEXP SmSEXP, SEXP CSEXP, SEXP alphaSEXP, SEXP presentSEXP, SEXP prmSEXP, SEXP grpSEXP, SEXP neg_tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset(datasetSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type mids_to_fit(mids_to_fitSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Rr(RrSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Sm(SmSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type C(CSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::LogicalVector >::type present(presentSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type prm(prmSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type grp(grpSEXP);
+    Rcpp::traits::input_parameter< double >::type neg_tol(neg_tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_sensitivity_gram(file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_gramc_block_hdf5
+Rcpp::List reliability_gramc_block_hdf5(std::string file, std::string in_group, std::string ds_in, std::string out_group, std::string ds_out, Rcpp::IntegerVector present, int comp);
+RcppExport SEXP _mgcca_reliability_gramc_block_hdf5(SEXP fileSEXP, SEXP in_groupSEXP, SEXP ds_inSEXP, SEXP out_groupSEXP, SEXP ds_outSEXP, SEXP presentSEXP, SEXP compSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type in_group(in_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type ds_in(ds_inSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_group(out_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type ds_out(ds_outSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type present(presentSEXP);
+    Rcpp::traits::input_parameter< int >::type comp(compSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_gramc_block_hdf5(file, in_group, ds_in, out_group, ds_out, present, comp));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_gramc_block_mem
+Rcpp::NumericMatrix reliability_gramc_block_mem(Rcpp::NumericMatrix Gsid, Rcpp::IntegerVector present);
+RcppExport SEXP _mgcca_reliability_gramc_block_mem(SEXP GsidSEXP, SEXP presentSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Gsid(GsidSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type present(presentSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_gramc_block_mem(Gsid, present));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_subspace_overlap
+double reliability_subspace_overlap(Rcpp::NumericMatrix Va, Rcpp::NumericMatrix Vb);
+RcppExport SEXP _mgcca_reliability_subspace_overlap(SEXP VaSEXP, SEXP VbSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Va(VaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Vb(VbSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_subspace_overlap(Va, Vb));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_proj_overlap
+double reliability_proj_overlap(Rcpp::NumericMatrix Pa, Rcpp::NumericMatrix Pb, int L);
+RcppExport SEXP _mgcca_reliability_proj_overlap(SEXP PaSEXP, SEXP PbSEXP, SEXP LSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Pa(PaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Pb(PbSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_proj_overlap(Pa, Pb, L));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_tcrossprod_hdf5
+Rcpp::List reliability_tcrossprod_hdf5(std::string file, std::string in_group, std::string in_ds, std::string out_group, std::string out_ds, Rcpp::Nullable<int> threads);
+RcppExport SEXP _mgcca_reliability_tcrossprod_hdf5(SEXP fileSEXP, SEXP in_groupSEXP, SEXP in_dsSEXP, SEXP out_groupSEXP, SEXP out_dsSEXP, SEXP threadsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type in_group(in_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type in_ds(in_dsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_group(out_groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type out_ds(out_dsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type threads(threadsSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_tcrossprod_hdf5(file, in_group, in_ds, out_group, out_ds, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_subspace_fit
+Rcpp::List reliability_subspace_fit(std::string file, std::string group, Rcpp::CharacterVector gram_ds, Rcpp::IntegerMatrix masks, int L, double gamma, double eps, double rank_tol, double sym_tol, double pad_tol, bool return_B);
+RcppExport SEXP _mgcca_reliability_subspace_fit(SEXP fileSEXP, SEXP groupSEXP, SEXP gram_dsSEXP, SEXP masksSEXP, SEXP LSEXP, SEXP gammaSEXP, SEXP epsSEXP, SEXP rank_tolSEXP, SEXP sym_tolSEXP, SEXP pad_tolSEXP, SEXP return_BSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< Rcpp::CharacterVector >::type gram_ds(gram_dsSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerMatrix >::type masks(masksSEXP);
+    Rcpp::traits::input_parameter< int >::type L(LSEXP);
+    Rcpp::traits::input_parameter< double >::type gamma(gammaSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< double >::type rank_tol(rank_tolSEXP);
+    Rcpp::traits::input_parameter< double >::type sym_tol(sym_tolSEXP);
+    Rcpp::traits::input_parameter< double >::type pad_tol(pad_tolSEXP);
+    Rcpp::traits::input_parameter< bool >::type return_B(return_BSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_subspace_fit(file, group, gram_ds, masks, L, gamma, eps, rank_tol, sym_tol, pad_tol, return_B));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_read_full_test
+Rcpp::NumericMatrix reliability_read_full_test(std::string file, std::string group, std::string dataset);
+RcppExport SEXP _mgcca_reliability_read_full_test(SEXP fileSEXP, SEXP groupSEXP, SEXP datasetSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type file(fileSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset(datasetSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_read_full_test(file, group, dataset));
+    return rcpp_result_gen;
+END_RCPP
+}
 // mgcca_scores_rcpp
 Rcpp::List mgcca_scores_rcpp(std::string filename, std::string tmp_group, std::vector<std::string> datasets, int nfac, std::string final_group);
 RcppExport SEXP _mgcca_mgcca_scores_rcpp(SEXP filenameSEXP, SEXP tmp_groupSEXP, SEXP datasetsSEXP, SEXP nfacSEXP, SEXP final_groupSEXP) {
@@ -191,6 +396,19 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcca_mgcca_eigen_rcpp", (DL_FUNC) &_mgcca_mgcca_eigen_rcpp, 6},
     {"_mgcca_mgcca_getK_rcpp", (DL_FUNC) &_mgcca_mgcca_getK_rcpp, 4},
     {"_mgcca_mgcca_rcpp", (DL_FUNC) &_mgcca_mgcca_rcpp, 12},
+    {"_mgcca_reliability_gram_hdf5", (DL_FUNC) &_mgcca_reliability_gram_hdf5, 10},
+    {"_mgcca_reliability_gram_block", (DL_FUNC) &_mgcca_reliability_gram_block, 7},
+    {"_mgcca_reliability_reference_fit", (DL_FUNC) &_mgcca_reliability_reference_fit, 4},
+    {"_mgcca_reliability_block_inputs", (DL_FUNC) &_mgcca_reliability_block_inputs, 4},
+    {"_mgcca_reliability_query", (DL_FUNC) &_mgcca_reliability_query, 4},
+    {"_mgcca_reliability_sensitivity_gram", (DL_FUNC) &_mgcca_reliability_sensitivity_gram, 12},
+    {"_mgcca_reliability_gramc_block_hdf5", (DL_FUNC) &_mgcca_reliability_gramc_block_hdf5, 7},
+    {"_mgcca_reliability_gramc_block_mem", (DL_FUNC) &_mgcca_reliability_gramc_block_mem, 2},
+    {"_mgcca_reliability_subspace_overlap", (DL_FUNC) &_mgcca_reliability_subspace_overlap, 2},
+    {"_mgcca_reliability_proj_overlap", (DL_FUNC) &_mgcca_reliability_proj_overlap, 3},
+    {"_mgcca_reliability_tcrossprod_hdf5", (DL_FUNC) &_mgcca_reliability_tcrossprod_hdf5, 6},
+    {"_mgcca_reliability_subspace_fit", (DL_FUNC) &_mgcca_reliability_subspace_fit, 11},
+    {"_mgcca_reliability_read_full_test", (DL_FUNC) &_mgcca_reliability_read_full_test, 3},
     {"_mgcca_mgcca_scores_rcpp", (DL_FUNC) &_mgcca_mgcca_scores_rcpp, 5},
     {"_mgcca_mgcca_scores_svd_rcpp", (DL_FUNC) &_mgcca_mgcca_scores_svd_rcpp, 7},
     {"_mgcca_mgcca_svd_rcpp", (DL_FUNC) &_mgcca_mgcca_svd_rcpp, 7},

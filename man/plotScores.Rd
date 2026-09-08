@@ -36,6 +36,30 @@ Plots the per-table scores (\code{X_j} projected onto its
   canonical weights) for one table on two components -- each table's own view
   of the individuals. Requires the fit to have been computed with
   \code{scores = TRUE}.
+
+  Individuals that are not part of the chosen table have no score in it
+  (\code{NA}) and are left out of the plot, with a message saying how many.
+  They are not drawn at the origin, which would put them where a genuinely
+  average measured individual sits. Use \code{\link{plotIndividuals}} on
+  \code{Y} for a view that covers everyone.
+}
+\examples{
+data(cardiovascular)
+u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))
+sel <- u[1:150]
+mk  <- function(d, cols = NULL) {
+    m <- as.matrix(d[rownames(d) \%in\% sel, , drop = FALSE])
+    if (!is.null(cols)) m <- m[, cols, drop = FALSE]
+    storage.mode(m) <- "double"
+    m
+}
+X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), other = mk(X3))
+## per-table scores are only produced when scores = TRUE
+fit <- mgcca(X, nfac = 2, method = "penalized", lambda = rep(0.1, 3),
+             scores = TRUE)
+
+## individuals absent from the clinical table are dropped, with a message
+plotScores(fit, table = "clinical")
 }
 \seealso{
 \code{\link{plotIndividuals}}, \code{\link{plotBiplot}}

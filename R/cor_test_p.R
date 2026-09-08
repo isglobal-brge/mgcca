@@ -1,11 +1,26 @@
-#' S3 method for cor.test on class 'p'
-#' @description Compute two-sided p-value from correlation and sample size.
+#' Two-sided p-value of a correlation coefficient
+#'
+#' @description Compute the two-sided p-value of a Pearson correlation
+#'   coefficient from the coefficient and the sample size, without needing the
+#'   underlying data. Used internally by \code{\link{mgcca_results}} to turn the
+#'   between-table correlations into p-values, and exported because it is useful
+#'   on its own.
+#'
+#' @details Despite its name (kept for backward compatibility) this is a plain
+#'   function, not an S3 method: \code{stats::cor.test} is not a generic.
+#'
 #' @param r Correlation coefficient.
 #' @param n Sample size (>= 3).
-#' @param ... Further arguments (ignored).
-#' @return Numeric p-value (two-sided).
-#' @export
-#' @method cor.test p
+#'
+#' @return A numeric vector of the same length as \code{r} with the two-sided
+#'   p-values from a t distribution on \code{n - 2} degrees of freedom.
+#'
+#' @examples
+#' cor.test.p(0.35, 100)
+#' cor.test.p(c(0.1, 0.5, 0.9), 50)
+#'
+#' @importFrom stats pt
+#' @export cor.test.p
 cor.test.p <- function(r, n)
 {
 
@@ -14,4 +29,3 @@ cor.test.p <- function(r, n)
   p
 
 }
-
