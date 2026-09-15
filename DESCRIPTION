@@ -2,8 +2,8 @@ Package: mgcca
 Type: Package
 Title: Generalized Canonical Correlation Analysis having missing
     individuals
-Version: 0.99.0
-Date: 2026-09-06
+Version: 0.99.1
+Date: 2026-09-15
 Authors@R:
   c(  person( given = "Dolors",
               family = "Pelegri-Siso",
@@ -26,7 +26,7 @@ Description: Implements Generalized Canonical Correlation Analysis (GCCA)
     the BigDataStatMeth C++ API to scale computations; R functions are thin
     wrappers around the C++ core.
 Depends: R (>= 4.5.0),
-    BigDataStatMeth (>= 2.0.3)
+    BigDataStatMeth (>= 2.0.5)
 Imports: MASS,
     rlang (>= 1.1.0),
     Rcpp (>= 1.0.6),

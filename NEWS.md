@@ -1,3 +1,20 @@
+# mgcca 0.99.1
+
+Fixes in response to the first Bioconductor build report. The statistical
+results are unchanged.
+
+## Fixed
+
+- Corrected the case of two filenames in the repository
+  (`data/cardiovascular.RData`, `vignettes/mgcca_example.Rmd`), which broke
+  the example data, the vignettes and several tests on the build machines.
+
+- Now requires BigDataStatMeth (>= 2.0.5), the version this package was
+  developed and tested against.
+
+- `plot(audit, type = "patterns")`: patterns consisting of a single block
+  are now drawn in frequency order instead of at the top of the panel.
+
 # mgcca 0.99.0
 
 **Bioconductor submission.** The estimator is untouched: the C++/HDF5 core and
