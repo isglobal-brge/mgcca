@@ -3,7 +3,7 @@
 // over the PRESENT participants only, with the (n_pr - 1) sample-SD denominator.
 //
 // This is the GENERIC block primitive of the mgcca reliability-layer C++/HDF5 port
-// (PORT_FIRST_KERNEL.md, ChatGPT r148). It is written with a clean interface and NO
+// (PORT_FIRST_KERNEL.md). It is written with a clean interface and NO
 // mgcca-specific dependencies so it is a candidate to lift into BigDataStatMeth later
 // (port-bdsm-reuse-architecture) -- but is NOT upstreamed during K1 certification.
 //
@@ -20,7 +20,7 @@
 //    rescale, no exclusion mode -> p_eff = p on every successful run. The expected
 //    algebraic identity tr(G) = p_eff (n_pr - 1) holds mathematically; its finite-
 //    precision residual is RECORDED (e_trace) and checked against a tolerance, NOT
-//    asserted bitwise (ChatGPT r150 §4).
+//    asserted bitwise.
 //  * Failure is ATOMIC (r150 §5): a degenerate feature throws AFTER some chunks have
 //    accumulated, so NO partial Gram is returned; the error reports the ABSOLUTE
 //    logical feature index and its id when available.

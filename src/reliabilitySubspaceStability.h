@@ -1,13 +1,13 @@
 // reliabilitySubspaceStability.h -- K3b: the subspace-STABILITY layer on the sealed K3a engine.
 // -----------------------------------------------------------------------------------------------
-// The genuinely-new numerical content of K3b (PORT_FOURTH_KERNEL.md, ChatGPT r222-r232). Built ON the
+// The genuinely-new numerical content of K3b (PORT_FOURTH_KERNEL.md). Built ON the
 // BigDataStatMeth C++/HDF5 API, exactly like the sealed K1/K2/K3a kernels: BigDataStatMeth owns the scalable
 // substrate (HDF5 create/read/write, feature-streamed exact-A methyl Gram = sealed K1, small-block Grams via
 // BigDataStatMeth crossprod/tcrossprod, participant-space Gram persistence, and the sealed K3a refit). K3b adds
 // only the BOUNDED participant-space dense LEAVES that the estimator port already does in Eigen (the run_eigen /
 // run_XKX precedent: SelfAdjointEigenSolver + D*M*D congruence on the small m×m/n×n; a possible post-JSS port of
-// reusable dense helpers into BigDataStatMeth is future engineering, NOT a condition of K3b validity -- ChatGPT
-// r232 approved the scale-based boundary):
+// reusable dense helpers into BigDataStatMeth is future engineering, NOT a condition of K3b validity -- the
+// scale-based boundary is settled):
 //   (1) gramc_block_hdf5  -- variant-C observed double-centring  H*G[O,O]*H, embedded with zero rows/cols for
 //        block-absent participants (== script-37 recenter + embed). Reads the already-reduced participant Gram in
 //        FULL from HDF5 (BigDataStatMeth-backed mgcca::read_full), centres it in Eigen, writes it through the

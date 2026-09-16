@@ -440,7 +440,7 @@ inline Rcpp::NumericVector run_eigen(const std::string& filename,
     // path only if it also fits a RAM budget (MGCCA_EIGEN_MAX_MB, default 4 GB), not by
     // dimension alone (a nominal fit != a safe/cheap O(m^3) solve). This is an
     // implementation SAFETY ESTIMATE, not a peak-RSS prediction. m^2 is formed in
-    // double to avoid integer overflow for large m. (ChatGPT rounds 29-30.)
+    // double to avoid integer overflow for large m.
     double est_mb = 5.0 * (double)m * (double)m * 8.0 / (1024.0 * 1024.0);
     double budget_mb = 4096.0;
     { const char* ev = std::getenv("MGCCA_EIGEN_MAX_MB");

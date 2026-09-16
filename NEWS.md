@@ -1,3 +1,12 @@
+# mgcca 0.99.2
+
+## Fixed
+
+- Fitting from an HDF5 file now works on Windows. Every HDF5 handle opened
+  while importing the data is released before the fit reopens the file, so a
+  fit no longer stops with "HDF5 file is in use by another process". Other
+  platforms are unaffected. The statistical results are unchanged.
+
 # mgcca 0.99.1
 
 Fixes in response to the first Bioconductor build report. The statistical

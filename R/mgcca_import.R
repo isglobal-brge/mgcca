@@ -60,6 +60,11 @@ mgcca_import_hdf5 <- function(x, filename, group = "MGCCA_IN", datasets = NULL,
         ds <- datasets
         if (is.null(ds))
             ds <- BigDataStatMeth::bdgetDatasetsList_hdf5(filename = x, group = group)
+        # Release any HDF5 handle opened while inspecting the file before
+        # returning. The caller reopens the same file read-write, and on Windows
+        # a handle still open in this process makes that reopen fail with "file
+        # is in use by another process". A no-op where nothing is open.
+        suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
         return(list(filename = x, group = group, datasets = as.character(ds)))
     }
 
@@ -104,6 +109,12 @@ mgcca_import_hdf5 <- function(x, filename, group = "MGCCA_IN", datasets = NULL,
         if (!is.null(hm) && is.function(hm$close)) hm$close()
         rm(m); invisible(gc(FALSE))
     }
+
+    # Release every HDF5 handle this import opened before returning. The caller
+    # (mgcca(), mgcca_sensitivity()) reopens the same file read-write, and on
+    # Windows a handle still open in this process makes that reopen fail with
+    # "file is in use by another process". A no-op where nothing is open.
+    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
 
     list(filename = filename, group = group, datasets = nms)
 }

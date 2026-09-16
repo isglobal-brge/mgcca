@@ -1,8 +1,8 @@
 # Robustness of the final eigendecomposition (run_eigen), 2026-07-24. The operator
 # MKsum05 is n x n by construction, so run_eigen uses a DIRECT symmetric solver by
 # default (adaptive: iterative out-of-core only when the operator is too large, with a
-# direct fallback on non-convergence). These tests exercise the cases ChatGPT asked for
-# (round 28 sec.6): well-separated, near-identity/degenerate, small external gap,
+# direct fallback on non-convergence). These tests exercise the cases that matter:
+# well-separated, near-identity/degenerate, small external gap,
 # nfac==1 vs nfac>1, direct-vs-iterative agreement, and the validity diagnostics.
 
 # ---- helpers: build small synthetic multi-block data with shared structure --------

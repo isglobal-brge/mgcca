@@ -1,6 +1,6 @@
 // mgcca_reliability_subspace.cpp -- thin [[Rcpp::export]] wrapper over the K3a production
 // kernel mgcca::reliability::fit_from_grams (top-L balanced subspace refit from block Grams).
-// PORT_THIRD_KERNEL.md (sealed ChatGPT r192). R supplies the J Gram HDF5 dataset names + the
+// PORT_THIRD_KERNEL.md (sealed spec). R supplies the J Gram HDF5 dataset names + the
 // per-block presence masks + frozen params (L, gamma); C++ reads the Grams and returns the FULL
 // fit object (r190 §2 / r192): D, lambda, B_j, unbalanced (P0,V0,mu0), balanced (P,V,mu), w, q,
 // cL, gaps, structural invariants, and the solve audit (rho_j, r^max_j, sym(B_j)).

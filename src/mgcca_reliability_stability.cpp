@@ -2,8 +2,8 @@
 // primitives (mgcca::reliability:: gramc_block_hdf5 / subspace_overlap / proj_overlap). Built ON the
 // BigDataStatMeth C++/HDF5 API like the sealed K1/K2/K3a kernels: the Gram-C construction is HDF5-in/HDF5-out
 // through BigDataStatMeth (mgcca::read_full / write_full_create); the bounded participant-space dense leaves
-// (centring congruence, principal-angle metric) are Eigen, the run_eigen / run_XKX precedent (ChatGPT r232
-// approved the scale-based boundary; post-JSS migration of reusable dense helpers into BigDataStatMeth is
+// (centring congruence, principal-angle metric) are Eigen, the run_eigen / run_XKX precedent (the
+// scale-based boundary is settled; post-JSS migration of reusable dense helpers into BigDataStatMeth is
 // future work). PORT_FOURTH_KERNEL.md. Reproduces script-37's recenter / ovl_rows / trPP.
 //
 // [[Rcpp::depends(BH, RcppEigen, Rhdf5lib, BigDataStatMeth)]]

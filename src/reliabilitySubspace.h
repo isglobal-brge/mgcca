@@ -1,5 +1,5 @@
 // reliabilitySubspace.h -- K3a production kernel: the top-L (Ky Fan) balanced subspace
-// REFIT from block Grams (PORT_THIRD_KERNEL.md, sealed ChatGPT r192). Faithful transcription
+// REFIT from block Grams (PORT_THIRD_KERNEL.md, sealed spec). Faithful transcription
 // of the R oracle `assemble5` = fit_pgcca_from_grams + topL_weights + rebalance + per-block
 // geometry (reliability/helix/institution_balancing.R + lam_from_grams in script 37).
 //

@@ -15,7 +15,7 @@
 // That is not a compromise: forcing an n x n dense solve through HDF5 would be
 // slower and no more scalable, and `run_svd` already established the convention.
 //
-// CONVENTIONS FOLLOWED (CLAUDE.md section 5, "the number one source of bugs"):
+// CONVENTIONS FOLLOWED (the number one source of bugs in this port):
 //   * always work in R dims via nrows_r()/ncols_r();
 //   * crossprod(A,B) = t(A) %*% B and tcrossprod(A,B) = A %*% t(B), R semantics;
 //   * std::unique_ptr for every working object;

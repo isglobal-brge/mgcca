@@ -1,6 +1,6 @@
 // reliabilitySensitivity.h -- K2 production route: the streamed methylation SENSITIVITY
 // accumulators reduced to a PARTICIPANT-SPACE contraction that REUSES the sealed K1 Gram
-// (PORT_SECOND_KERNEL.md §14, ChatGPT r168/r170; identity confirmed in tests/harness/31).
+// (PORT_SECOND_KERNEL.md §14; identity confirmed in tests/harness/31).
 //
 // Since feature chunks partition the columns of Z, Sum_c Z_c Z_c^T = Z Z^T = Q, so with
 //   H_o = alpha_m ( Sm C^T Rr^T + Rr C Sm^T )   (n_fit x n_fit, symmetric)   and D_o = P_m H_o Z,
@@ -69,7 +69,7 @@ inline SensResult sensitivity_from_gram(const std::string& file, const std::stri
         for (long j = 0; j < n_meth; ++j) Q(fi, mids_to_fit[j]) = G(i, j);
     }
 
-    // --- H_o via A0 + A0^T (ChatGPT r172 §2: structural symmetry by construction, one product chain,
+    // --- H_o via A0 + A0^T (structural symmetry by construction, one product chain,
     //     coefficient applied ONCE) --- A0 = Rr C Sm^T ; H_o = alpha (A0 + A0^T). ---
     Eigen::MatrixXd A0 = Rr * C * Sm.transpose();                 // n_fit x n_fit
     Eigen::MatrixXd Ho = alpha * (A0 + A0.transpose());
