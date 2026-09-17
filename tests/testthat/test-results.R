@@ -57,7 +57,10 @@ test_that("plot/summary helpers accept the collected object without error", {
   pdf(tempfile(fileext = ".pdf"))
   on.exit(dev.off(), add = TRUE)
   expect_no_error(plotInds(fit))
-  expect_no_error(plotVars(fit, nlab = 3))
+  # plotVars() is the only helper that needs made4, a Suggests: guard just this
+  # expectation so the rest of the block still runs where made4 is absent.
+  if (requireNamespace("made4", quietly = TRUE))
+    expect_no_error(plotVars(fit, nlab = 3))
 
   sig <- getSignif(fit, pval.cut = 1e-3)
   expect_true(all(c("variable", "table") %in% names(sig)))

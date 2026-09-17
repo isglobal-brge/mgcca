@@ -1,3 +1,17 @@
+# mgcca 0.99.3
+
+## Fixed
+
+- The remaining Windows failures are resolved upstream: mgcca now requires
+  BigDataStatMeth (>= 2.0.6), which no longer decides that an HDF5 file is held
+  by another process by trying to open it, and which closes a file with a strong
+  close degree so no dataset can outlive the file that owns it. Together these
+  let the analyses that write results and read them back run on Windows as they
+  already did on Linux and macOS. The statistical results are unchanged.
+- `plotVars()` needs the optional made4 package, and its test now runs only when
+  made4 is installed, so the test suite passes on a machine that has no
+  suggested packages.
+
 # mgcca 0.99.2
 
 ## Fixed
