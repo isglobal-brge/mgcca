@@ -424,8 +424,16 @@
 }
 
 ## Write one double matrix, closing the handle the R6 reader leaves open.
+## The dataset is removed before it is written rather than overwritten in
+## place: an audit saved repeatedly into the same file rewrites all of its
+## tables on every save, and on Windows that sequence of in-place recreations
+## eventually leaves the file unopenable. Removing first makes every write a
+## clean creation, and it also releases any handle still pointing at the path.
 .mgcca_av_write <- function(filename, path, m) {
     storage.mode(m) <- "double"
+    suppressMessages(try(BigDataStatMeth::hdf5_remove(filename, path),
+                         silent = TRUE))
+    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
     hm <- BigDataStatMeth::hdf5_create_matrix(filename, path, data = m,
                                               dtype = "double", overwrite = TRUE)
     if (!is.null(hm) && is.function(hm$close)) try(hm$close(), silent = TRUE)
