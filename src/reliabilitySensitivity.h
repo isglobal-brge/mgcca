@@ -64,6 +64,7 @@ inline SensResult sensitivity_from_gram(const std::string& file, const std::stri
     // --- embed Q = E G_K1 E^T (n_fit x n_fit), zero outside mids ---
     Eigen::MatrixXd Q = Eigen::MatrixXd::Zero(n_fit, n_fit);
     for (long i = 0; i < n_meth; ++i) {
+        Rcpp::checkUserInterrupt();
         const long fi = mids_to_fit[i];
         if (fi < 0 || fi >= n_fit) throw std::runtime_error("mids_to_fit index out of range");
         for (long j = 0; j < n_meth; ++j) Q(fi, mids_to_fit[j]) = G(i, j);

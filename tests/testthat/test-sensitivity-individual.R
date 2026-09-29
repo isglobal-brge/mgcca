@@ -1,30 +1,33 @@
-# --- Bioconductor build time -------------------------------------------------
-# This file is one of the four heaviest in the suite. Bioconductor's builders
-# cap `R CMD check` at 10 minutes and this suite is the long pole, so the file
-# is skipped THERE only (`IS_BIOC_BUILD_MACHINE`); it runs in full everywhere
-# else, including on CRAN-style checks and in development.
-testthat::skip_on_bioc()
-
 # Per-individual sensitivity decomposition: the `by_individual` element.
 #
-# The fixture is the one the empirical probe used, reproduced line for line
-# (seed, sizes, missingness patterns, ridge, query and grouping). Reproducing it
-# is not decoration: the reference magnitudes asserted below were measured on
-# THIS fixture, so a different one would leave the tolerances unanchored.
+# The fixture reproduces the empirical probe's construction (seed, block
+# structure, missingness patterns, ridge, query and grouping) at a size the
+# Bioconductor builders can afford: 30 participants and 6 / 5 / 7 features,
+# rather than 70 and 12 / 9 / 15. Every size the assertions refer to is derived
+# from PERIND_N below, so what is checked is the same property on a smaller
+# fixture, not a weaker property.
 #
 # The oracle is plain R over the package's own internal algebra. It shares the
 # reference fit with the public path -- comparing against a differently
 # conditioned basis would measure the basis, not the decomposition.
 #
-# ⚠️ TOLERANCE DOCTRINE, frozen. Parity and the decomposition identity are
+# TOLERANCE DOCTRINE, frozen. Parity and the decomposition identity are
 # checked as  max|delta| <= 1e-12 * max(1, scale)  where `scale` is a BLOCK-level
 # magnitude: max(abs(oracle accX_j)) for parity, |S_j| for the identity. A
 # per-entry relative criterion is never used, because a participant absent from a
 # block contributes ~1e-34 there and a relative error against that measures
 # rounding against nothing.
 
+# Every temporary HDF5 file this file creates is removed when it is done.
+h5_cleanup_on_exit()
+
+PERIND_N <- 30L                       # participants in the fixture
+PERIND_TOPN <- 10L                    # top_n the plot test asks for
+PERIND_DEFAULT_TOPN <- 15L            # plot.mgcca_sensitivity's own default
+PERIND_KEEP <- 24L                    # subset used by the conditioning test
+
 perind_fit <- function(tabs, L = 2L) {
-    h5 <- tempfile(fileext = ".h5")
+    h5 <- h5_tmp()
     fit <- suppressMessages(mgcca(tabs, filename = h5, nfac = L, scale = TRUE,
                                   method = "solve", scores = TRUE))
     BigDataStatMeth::hdf5_close_all()
@@ -38,9 +41,9 @@ perind_fit <- function(tabs, L = 2L) {
 perind_fixture <- function() {
     if (!is.null(.perind_cache$fx)) return(.perind_cache$fx)
     set.seed(20260903)
-    n <- 70L; J <- 3L; L <- 2L
+    n <- PERIND_N; J <- 3L; L <- 2L
     ids <- sprintf("id%03d", seq_len(n))
-    p <- c(blkA = 12L, blkB = 9L, blkC = 15L)
+    p <- c(blkA = 6L, blkB = 5L, blkC = 7L)
     lambda <- c(0.8, 1.2, 1.0)
     Z <- matrix(stats::rnorm(n * L), n, L)
     Xfull <- lapply(seq_len(J), function(j) {
@@ -50,13 +53,18 @@ perind_fixture <- function() {
         X
     })
     names(Xfull) <- names(p)
+    # blkB misses a contiguous tail, blkC a scattered handful plus the very last
+    # participant -- that last one is the "absent from this block" case the
+    # assertions below single out.
+    absent_id <- ids[n]
     av <- list(blkA = rep(TRUE, n),
-               blkB = !(ids %in% sprintf("id%03d", 61:68)),
-               blkC = !(ids %in% sprintf("id%03d", c(5, 17, 23, 42, 55))))
-    av$blkC[ids == "id070"] <- FALSE
+               blkB = !(ids %in% ids[(n - 4L):(n - 1L)]),
+               blkC = !(ids %in% ids[c(5, 17, 23)]))
+    av$blkC[ids == absent_id] <- FALSE
     tabs <- Map(function(X, m) X[m, , drop = FALSE], Xfull, av)
     set.seed(20260905)
-    fx <- list(n = n, L = L, ids = ids, Xfull = Xfull, av = av, tabs = tabs,
+    fx <- list(n = n, L = L, ids = ids, absent_id = absent_id,
+               Xfull = Xfull, av = av, tabs = tabs,
                lambda = lambda,
                query = stats::setNames(as.numeric(Z[, 1] + 0.5 * stats::rnorm(n)), ids),
                group = stats::setNames(rep(c("g1", "g2"), each = n / 2), ids))
@@ -106,6 +114,15 @@ perind_oracle <- function(fitobj, lambda, query, group) {
                             stringsAsFactors = FALSE))
 }
 
+# The oracle is deterministic in the shared fit, so it too is built once.
+perind_oracle_shared <- function() {
+    if (is.null(.perind_cache$oracle)) {
+        f <- perind_fixture()
+        .perind_cache$oracle <- perind_oracle(f$fit, f$lambda, f$query, f$group)
+    }
+    .perind_cache$oracle
+}
+
 perind_key <- function(d) paste(d$query, d$id, d$block, sep = "|")
 perind_bkey <- function(d) paste(d$id, d$block, sep = "|")
 
@@ -117,15 +134,46 @@ perind_total <- function(s) {
 
 perind_sens <- function(...) suppressMessages(mgcca_sensitivity(...))
 
+# The grouped and ungrouped sensitivity of the shared fit at the shared query:
+# eight of the tests below start from exactly one of these two objects.
+perind_grouped <- function() {
+    if (is.null(.perind_cache$g)) {
+        f <- perind_fixture()
+        .perind_cache$g <- perind_sens(f$fit, query = f$query, group = f$group,
+                                       lambda = f$lambda, backend = "memory")
+    }
+    .perind_cache$g
+}
+
+perind_ungrouped <- function() {
+    if (is.null(.perind_cache$u)) {
+        f <- perind_fixture()
+        .perind_cache$u <- perind_sens(f$fit, query = f$query,
+                                       lambda = f$lambda, backend = "memory")
+    }
+    .perind_cache$u
+}
+
+# The two-column query: the decomposition identity and the faceted plot both
+# need more than one query, and they need the same one.
+perind_two_query <- function() {
+    if (is.null(.perind_cache$q2)) {
+        f <- perind_fixture()
+        Q <- cbind(one = f$query,
+                   two = stats::setNames(rev(as.numeric(f$query)), f$ids))
+        .perind_cache$q2 <- perind_sens(f$fit, query = Q, group = f$group,
+                                        lambda = f$lambda, backend = "memory")
+    }
+    .perind_cache$q2
+}
+
 test_that("the per-individual table matches a plain-R oracle at block scale", {
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    s <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    bi <- s$by_individual
+    bi <- perind_grouped()$by_individual
 
-    o <- perind_oracle(f$fit, f$lambda, f$query, f$group)
+    o <- perind_oracle_shared()
     i <- match(perind_bkey(bi), perind_bkey(o$tab))
     expect_false(anyNA(i))
     j <- match(bi$block, o$scale$block)
@@ -144,7 +192,7 @@ test_that("the per-individual table matches a plain-R oracle at block scale", {
 
     # Absent-from-block entries are a NUMERICAL zero, not an exact one, and are
     # deliberately NOT thresholded away.
-    absent <- bi$S_total[bi$block == "blkC" & bi$id == "id070"]
+    absent <- bi$S_total[bi$block == "blkC" & bi$id == f$absent_id]
     expect_lt(absent, 1e-20)
 })
 
@@ -152,22 +200,20 @@ test_that("A3: rows carry the right participant, and the contribution follows th
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    s <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    bi <- s$by_individual
+    bi <- perind_grouped()$by_individual
 
     # Exact ID vector and row count: the public rows ARE the ordered participant
     # set of the grouped calculation. Certified here, not promised in the docs.
     ctx <- mgcca:::.mgcca_rel_context(f$fit)
     G <- mgcca:::.mgcca_rel_group(f$group, ctx$ids)
-    expect_identical(nrow(bi), 70L * 3L)
+    expect_identical(nrow(bi), PERIND_N * 3L)
     for (b in ctx$datasets)
         expect_identical(bi$id[bi$block == b], ctx$ids[G$index + 1L])
 
     # (query, id, block) is a key.
     expect_identical(anyDuplicated(perind_key(bi)), 0L)
 
-    # ⚠️ THE GATE THIS RELEASE EXISTS FOR. A row permutation of the kernel's
+    # THE GATE THIS RELEASE EXISTS FOR. A row permutation of the kernel's
     # accumulator leaves every block TRACE unchanged, so 1.2.0 could not have
     # noticed one. Attaching those rows to participant IDs makes the same
     # permutation produce perfect block totals with wrong participant labels.
@@ -205,9 +251,7 @@ test_that("A4: the decomposition identity holds within tolerance and is reported
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    Q <- cbind(one = f$query, two = stats::setNames(rev(as.numeric(f$query)), f$ids))
-    s <- perind_sens(f$fit, query = Q, group = f$group,
-                     lambda = f$lambda, backend = "memory")
+    s <- perind_two_query()
     bi <- s$by_individual
     expect_identical(anyDuplicated(perind_key(bi)), 0L)
 
@@ -235,16 +279,14 @@ test_that("A4: the decomposition identity holds within tolerance and is reported
                 s$by_individual_check$sum_rel_between))
 
     # Ungrouped results report only the total arm.
-    u <- perind_sens(f$fit, query = f$query, lambda = f$lambda, backend = "memory")
-    expect_named(u$by_individual_check, "sum_rel_total")
+    expect_named(perind_ungrouped()$by_individual_check, "sum_rel_total")
 })
 
 test_that("A1: shares are per block, sum to one there, and are NA when undefined", {
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    s <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
+    s <- perind_grouped()
     bi <- s$by_individual
 
     d_sh <- 0
@@ -271,7 +313,7 @@ test_that("A1: shares are per block, sum to one there, and are NA when undefined
     # contributes ~1e-34 there; that survives into a share as a real, positive,
     # tiny number -- it is neither rounded to zero nor turned into NA, because it
     # is a defined quantity that merely happens to be negligible.
-    absent <- bi$share_total[bi$block == "blkC" & bi$id == "id070"]
+    absent <- bi$share_total[bi$block == "blkC" & bi$id == f$absent_id]
     expect_true(is.finite(absent) && absent > 0 && absent < 1e-20)
 
     # The zero/non-finite denominator branch returns NA rather than 0. It is not
@@ -286,12 +328,13 @@ test_that("the per-individual vector inherits the invariances, and the ridge dep
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    base <- perind_sens(f$fit, query = f$query, group = f$group,
-                        lambda = f$lambda, backend = "memory")
+    base <- perind_grouped()
     bv <- perind_total(base)
     bsh <- base$by_individual$share_total
 
-    for (cc in c(0.5, 2, 10)) {
+    # One representative rescaling on each side of 1 is enough for a property
+    # that is exact in the algebra; the third factor only repeated it.
+    for (cc in c(0.5, 10)) {
         s <- perind_sens(f$fit, query = cc * f$query, group = f$group,
                          lambda = f$lambda, backend = "memory")
         v <- perind_total(s)
@@ -336,16 +379,15 @@ test_that("the per-individual vector is conditioned on the grouped participant s
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    full <- perind_sens(f$fit, query = f$query, group = f$group,
-                        lambda = f$lambda, backend = "memory")
-    keep <- f$ids[seq_len(60)]
+    full <- perind_grouped()
+    keep <- f$ids[seq_len(PERIND_KEEP)]
     part <- perind_sens(f$fit, query = f$query, group = f$group[keep],
                         lambda = f$lambda, backend = "memory")
-    expect_identical(nrow(part$by_individual), 60L * 3L)
+    expect_identical(nrow(part$by_individual), PERIND_KEEP * 3L)
     ctx <- mgcca:::.mgcca_rel_context(f$fit)
-    G60 <- mgcca:::.mgcca_rel_group(f$group[keep], ctx$ids)
+    Gk <- mgcca:::.mgcca_rel_group(f$group[keep], ctx$ids)
     expect_identical(part$by_individual$id[part$by_individual$block == "blkA"],
-                     ctx$ids[G60$index + 1L])
+                     ctx$ids[Gk$index + 1L])
 
     a <- part$by_individual; b <- full$by_individual
     i <- match(perind_bkey(a), perind_bkey(b))
@@ -353,16 +395,15 @@ test_that("the per-individual vector is conditioned on the grouped participant s
     # It CHANGES, and that is the documented conditioning, not a defect.
     d <- max(abs(a$S_total - b$S_total[i]))
     expect_gt(d, 1e-12)
-    cat(sprintf("[perind] group 60/70 : max|dS_total| vs full group = %.3e (conditioning)\n", d))
+    cat(sprintf("[perind] group %d/%d : max|dS_total| vs full group = %.3e (conditioning)\n",
+                PERIND_KEEP, PERIND_N, d))
 })
 
 test_that("the schema is exact, with and without a grouping", {
     skip_if_not_installed("BigDataStatMeth")
-    f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    g <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    u <- perind_sens(f$fit, query = f$query, lambda = f$lambda, backend = "memory")
+    g <- perind_grouped()
+    u <- perind_ungrouped()
     expect_identical(names(g$by_individual),
                      c("query", "id", "block", "S_total", "S_between",
                        "share_total", "share_between"))
@@ -379,8 +420,7 @@ test_that("adding the per-individual table leaves the existing outputs alone", {
     skip_if_not_installed("BigDataStatMeth")
     f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    s <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
+    s <- perind_grouped()
     expect_identical(names(s$overall),
                      c("query", "n_used", "T", "S_total", "S_between", "R_between"))
     expect_identical(names(s$by_block),
@@ -388,7 +428,7 @@ test_that("adding the per-individual table leaves the existing outputs alone", {
                        "share_total", "share_between"))
 
     # overall and by_block still equal the oracle's own block totals.
-    o <- perind_oracle(f$fit, f$lambda, f$query, f$group)$tab
+    o <- perind_oracle_shared()$tab
     ot <- rowsum(o$S_total, o$block); ob <- rowsum(o$S_between, o$block)
     j <- match(s$by_block$block, rownames(ot))
     expect_equal(s$by_block$S_total, as.numeric(ot[j, 1L]), tolerance = 1e-12)
@@ -424,15 +464,12 @@ test_that("the per-individual table is persisted with the others", {
 test_that("the individuals plot accounts for the query's WHOLE sensitivity", {
     skip_if_not_installed("BigDataStatMeth")
     skip_if_not_installed("ggplot2")
-    f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    Q <- cbind(one = f$query, two = stats::setNames(rev(as.numeric(f$query)), f$ids))
-    s <- perind_sens(f$fit, query = Q, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    p <- plot(s, type = "individuals", top_n = 10)
+    s <- perind_two_query()
+    p <- plot(s, type = "individuals", top_n = PERIND_TOPN)
     expect_s3_class(p, "ggplot")
 
-    # ⚠️ THE REASON THE "all others" BAR EXISTS. Every bar drawn, top N and
+    # THE REASON THE "all others" BAR EXISTS. Every bar drawn, top N and
     # remainder together, must add back up to the query's total sensitivity --
     # otherwise the panel shows a top N as though it were the whole thing.
     bl <- ggplot2::ggplot_build(p)
@@ -446,23 +483,22 @@ test_that("the individuals plot accounts for the query's WHOLE sensitivity", {
     d_bar <- max(abs(as.numeric(tot) / ref - 1))
     expect_lt(d_bar, 1e-12)
     # top_n named participants + one remainder bar, stacked over every block.
-    expect_identical(nrow(d), 2L * (10L + 1L) * 3L)
+    expect_identical(nrow(d), 2L * (PERIND_TOPN + 1L) * 3L)
     cat(sprintf("[perind] plot bars   : max rel dev of panel totals vs overall = %.3e\n",
                 d_bar))
 
     # With top_n at or above the participant count there is no remainder to draw.
-    p2 <- plot(s, type = "individuals", top_n = 70)
-    expect_identical(nrow(ggplot2::ggplot_build(p2)$data[[1]]), 2L * 70L * 3L)
+    p2 <- plot(s, type = "individuals", top_n = PERIND_N)
+    expect_identical(nrow(ggplot2::ggplot_build(p2)$data[[1]]),
+                     2L * PERIND_N * 3L)
 })
 
 test_that("the individuals plot works ungrouped, and refuses what it cannot draw", {
     skip_if_not_installed("BigDataStatMeth")
     skip_if_not_installed("ggplot2")
-    f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    g <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    u <- perind_sens(f$fit, query = f$query, lambda = f$lambda, backend = "memory")
+    g <- perind_grouped()
+    u <- perind_ungrouped()
     expect_s3_class(plot(u, type = "individuals"), "ggplot")
 
     # Grouped results carry the group in the axis label; ungrouped ones cannot.
@@ -470,7 +506,9 @@ test_that("the individuals plot works ungrouped, and refuses what it cannot draw
     expect_true(any(grepl("^id\\d+ \\(g[12]\\)$", lab(plot(g, type = "individuals")))))
     expect_true(any(grepl("^id\\d+$", lab(plot(u, type = "individuals")))))
     # The remainder bar names no group: it is not one participant.
-    expect_true(any(grepl("^all others \\(55\\)$", lab(plot(g, type = "individuals")))))
+    expect_true(any(grepl(sprintf("^all others \\(%d\\)$",
+                                  PERIND_N - PERIND_DEFAULT_TOPN),
+                          lab(plot(g, type = "individuals")))))
 
     # An object from a version without the decomposition is refused, not drawn.
     old <- g; old$by_individual <- NULL
@@ -482,13 +520,12 @@ test_that("the individuals plot works ungrouped, and refuses what it cannot draw
 
 test_that("print and summary report the table without claiming more than it is", {
     skip_if_not_installed("BigDataStatMeth")
-    f <- perind_fixture()
     on.exit(BigDataStatMeth::hdf5_close_all(), add = TRUE)
-    g <- perind_sens(f$fit, query = f$query, group = f$group,
-                     lambda = f$lambda, backend = "memory")
-    u <- perind_sens(f$fit, query = f$query, lambda = f$lambda, backend = "memory")
-    expect_output(print(g), "individuals: 70 per query")
-    expect_output(print(u), "individuals: 70 per query")
+    g <- perind_grouped()
+    u <- perind_ungrouped()
+    n_msg <- sprintf("individuals: %d per query", PERIND_N)
+    expect_output(print(g), n_msg)
+    expect_output(print(u), n_msg)
     expect_output(summary(g), "Per-individual sensitivity contributions \\(exploratory\\)")
     expect_output(summary(u), "Per-individual sensitivity contributions \\(exploratory\\)")
     expect_output(summary(g), "share_of_query")
@@ -500,7 +537,7 @@ test_that("print and summary report the table without claiming more than it is",
     out <- utils::capture.output(summary(g))
     expect_false(any(grepl("patient", out, ignore.case = TRUE)))
 
-    # ⚠️ An object from a version that had no per-individual table prints as it
+    # An object from a version that had no per-individual table prints as it
     # did. Only `by_individual` is dropped here, NOT `by_individual_check`:
     # `$` partial-matches, so a lookup of `x$by_individual` on such an object
     # silently returns the check element instead. Dropping both would hide that.

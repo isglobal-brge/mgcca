@@ -28,7 +28,8 @@ group and no legend is drawn.}
 and 2.}
 
 \item{col.list}{vector of colours, one per level of \code{group}. When
-omitted a built-in palette is used; it must be at least as long as the
+omitted a fixed built-in palette is used, so repeated calls give the same
+colours and no random number is drawn; it must be at least as long as the
 number of levels.}
 
 \item{print.labels}{logical; when \code{TRUE} the individual names are

@@ -38,7 +38,8 @@
 #' preprocessing pipeline.
 #'
 #' @param x A fitted \code{"mgcca"} object; see \code{\link{mgcca_sensitivity}}
-#'   for what it must carry.
+#'   for what it must carry. For the \code{print} and \code{plot} methods
+#'   documented below, an object of class \code{"mgcca_stability"} instead.
 #' @param method \code{"subsample"} (default), \code{"loco"}, or \code{"both"}.
 #'   \code{"loco"} requires \code{group}; \code{"subsample"} does not, so the
 #'   function is usable with no grouping at all.
@@ -49,8 +50,12 @@
 #'   both roles would make it impossible.
 #' @param B Number of subsamples.
 #' @param fraction Fraction of participants retained in each subsample.
-#' @param seed Optional seed. The realised resampling plan is archived in the
-#'   result either way, so a run can be reproduced from what it returns.
+#' @param seed Optional integer. When supplied, random steps run under this seed
+#'   in a local RNG scope that restores the caller's random-number state
+#'   afterwards; when \code{NULL} (the default) the current RNG stream is used
+#'   as-is. The random step here is the resampling draw. The realised resampling
+#'   plan is archived in the result either way, so a run can be reproduced from
+#'   what it returns even when no seed was given.
 #' @param lambda,gamma Ridge for the layer's operator; see
 #'   \code{\link{mgcca_sensitivity}}.
 #' @param backend,block_size,threads As in \code{\link{mgcca_sensitivity}}.
@@ -112,6 +117,11 @@
 #' ## compares directions barely present in the shared participants.
 #' stab$summary_metrics
 #' stab$resamples
+#'
+#' ## summary() adds the worst resamples; plot() puts the two quantities on
+#' ## the same panel.
+#' summary(stab)
+#' plot(stab)
 #' @export
 mgcca_stability <- function(x, method = c("subsample", "loco", "both"),
                             group = NULL, strata = NULL, B = 200L,
@@ -146,12 +156,14 @@ mgcca_stability <- function(x, method = c("subsample", "loco", "both"),
 
     # The plan is drawn ONCE and archived, so the result carries what produced it
     # rather than a seed that only reproduces it under the same RNG settings.
-    if (!is.null(seed)) set.seed(seed)
+    # The seed applies to that draw alone (.mgcca_with_seed lives in
+    # mgcca_select_lambda.R) and the session's stream is restored: the draws for
+    # a given seed are the ones set.seed(seed) produced; the stream survives.
     rng <- list(kind = RNGkind(), seed = seed)
     plan <- list()
     if (method %in% c("subsample", "both")) {
         k <- max(2L, floor(fraction * n))
-        for (b in seq_len(B)) {
+        plan <- .mgcca_with_seed(seed, lapply(seq_len(B), function(b) {
             keep <- if (is.null(ST)) sort(sample.int(n, k)) else
                 sort(unlist(lapply(split(seq_len(n), ST$code[match(seq_len(n), ST$index + 1L)]),
                                    function(idx) {
@@ -159,9 +171,9 @@ mgcca_stability <- function(x, method = c("subsample", "loco", "both"),
                                        if (!length(idx)) return(integer(0))
                                        sample(idx, max(1L, floor(fraction * length(idx))))
                                    })))
-            plan[[length(plan) + 1L]] <- list(method = "subsample", id = b,
-                                              keep = keep, left_out = NA_character_)
-        }
+            list(method = "subsample", id = b, keep = keep,
+                 left_out = NA_character_)
+        }))
     }
     if (method %in% c("loco", "both")) {
         gi <- G$index + 1L
@@ -227,6 +239,19 @@ mgcca_stability <- function(x, method = c("subsample", "loco", "both"),
     out
 }
 
+#' @details \code{print()} reports the resampling settings, then
+#'   \code{summary_metrics}, then the number of resamples whose refit failed,
+#'   and closes with the reminder that the rank margin says whether the
+#'   comparison is well posed rather than whether the components are separated.
+#'
+#' @param object An object of class \code{"mgcca_stability"}, as returned by
+#'   \code{mgcca_stability()}.
+#' @param ... Ignored.
+#' @return \code{print()} returns its argument invisibly and
+#'   \code{summary()} returns \code{object} invisibly, both being called for
+#'   what they write to the console; \code{plot()} returns a \code{ggplot}
+#'   object, which draws when printed.
+#' @rdname mgcca_stability
 #' @export
 print.mgcca_stability <- function(x, ...) {
     s <- x$settings
@@ -251,6 +276,10 @@ print.mgcca_stability <- function(x, ...) {
     invisible(x)
 }
 
+#' @details \code{summary()} prints all of that and then the ten worst
+#'   resamples, ordered by overlap, so the tail of the distribution is what is
+#'   shown rather than its head.
+#' @rdname mgcca_stability
 #' @export
 summary.mgcca_stability <- function(object, ...) {
     print(object)
@@ -261,6 +290,13 @@ summary.mgcca_stability <- function(object, ...) {
     invisible(object)
 }
 
+#' @details \code{plot()} draws one point per successful resample, overlap
+#'   against rank margin and coloured by method. Reading the two axes together
+#'   is the point: a high overlap at a low rank margin compares directions
+#'   barely present in the shared participants. Resamples whose refit failed
+#'   carry no overlap and are absent from the panel; they stay in
+#'   \code{$resamples} with their reason.
+#' @rdname mgcca_stability
 #' @export
 plot.mgcca_stability <- function(x, ...) {
     d <- x$resamples[x$resamples$ok, , drop = FALSE]

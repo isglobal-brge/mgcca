@@ -156,6 +156,21 @@
     }, numeric(1))
 }
 
+## ---- a seeded draw that does not reseed the caller's session ----------------
+## A package function must not call set.seed(): that silently replaces the RNG
+## stream of whoever called it, and the stream is the user's to choose. `expr`
+## is a promise, so the draw is forced inside withr::with_seed(), which sets the
+## seed for that draw alone and restores the stream afterwards. The draws for a
+## given seed are exactly the ones set.seed(seed) produced before, so every
+## seeded result is unchanged; only the session's stream now survives the call.
+## `seed = NULL`, the default, takes the draw from the stream as it stands and
+## leaves every RNG setting untouched.
+.mgcca_with_seed <- function(seed, expr) {
+    if (is.null(seed)) return(expr)
+    withr::with_seed(seed, expr)
+}
+
+
 ## ---- one CV pass: mean held-out cross-block agreement ----------------------
 ## Port of cv_crossblock (estimator.R:445-476). `lambda_fold` is a list of length
 ## K holding the lambda vector to use in each fold (they differ when lambda is
@@ -265,9 +280,12 @@
 #'   amount of regularisation comparable across blocks of very different
 #'   dimension; a fixed absolute \code{lambda} does not.
 #' @param K Number of folds. Default 5.
-#' @param seed Seed for the fold assignment, default 1. The whole procedure is a
-#'   deterministic function of it. Pass \code{NULL} to leave the session's RNG
-#'   stream untouched and let the folds fall where the current stream puts them.
+#' @param seed Optional integer. When supplied, random steps run under this seed
+#'   in a local RNG scope that restores the caller's random-number state
+#'   afterwards; when \code{NULL} (the default) the current RNG stream is used
+#'   as-is. The random step here is the fold assignment, which the whole
+#'   selection is a deterministic function of, so pass a seed when you want the
+#'   selection to be reproducible.
 #' @param rule \code{"argmax"} (default) takes the best mean CV agreement, as in
 #'   the reference calibration. \code{"1se"} takes the most regularised candidate
 #'   whose mean is within one standard error of the best.
@@ -329,7 +347,10 @@
 #'
 #' ## Three candidates for the dimensionless ridge, three folds. A real
 #' ## analysis uses the wider default grid; this one is sized for the example.
-#' sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3)
+#' ## The folds are drawn at random, so a seed is passed to make the selection
+#' ## reproducible; without one the draw comes from the session's own stream.
+#' sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3,
+#'                            seed = 1)
 #' sel
 #'
 #' ## The whole candidate trace, not only the winner: report the near-optimal
@@ -340,7 +361,7 @@
 #' fit <- mgcca(X, nfac = 2, method = "penalized", lambda = sel$lambda)
 #' @export
 mgcca_select_lambda <- function(x, nfac = 2, gamma = NULL, lambda = NULL,
-                                scale_matched = TRUE, K = 5, seed = 1,
+                                scale_matched = TRUE, K = 5, seed = NULL,
                                 rule = c("argmax", "1se"), scale = TRUE,
                                 min_pair = NULL, rank_tol = 1e-8,
                                 sd_tol = 1e-8) {
@@ -385,10 +406,13 @@ mgcca_select_lambda <- function(x, nfac = 2, gamma = NULL, lambda = NULL,
 
     ## ---- folds (estimator.R:449-450) ---------------------------------------
     ## The seed is the caller's: it is what makes the fold assignment, and so the
-    ## whole selection, reproducible. `seed = NULL` opts out and leaves the
-    ## session's RNG stream alone; the default `seed = 1` is unchanged.
-    if (!is.null(seed)) set.seed(seed)
-    fold <- sample(rep(seq_len(K), length.out = length(ids)))
+    ## whole selection, reproducible. The default is `seed = NULL`, which takes
+    ## the folds from the stream as it stands and touches no RNG state at all.
+    ## A supplied seed is applied to this draw alone -- the folds it produces are
+    ## the ones set.seed(seed) produced before -- and the session's stream is
+    ## restored afterwards.
+    fold <- .mgcca_with_seed(seed,
+                             sample(rep(seq_len(K), length.out = length(ids))))
     names(fold) <- ids
 
     ## ---- per-fold block scales, from the TRAINING rows only ----------------
@@ -463,7 +487,7 @@ mgcca_select_lambda <- function(x, nfac = 2, gamma = NULL, lambda = NULL,
     }
     flat <- sum(in_1se, na.rm = TRUE) >= max(3L, floor(G / 2))
     if (flat && identical(status, "ok"))
-        message("mgcca_select_lambda: ", sum(in_1se, na.rm = TRUE),
+        message(sum(in_1se, na.rm = TRUE),
                 " of ", G, " candidates are within one standard error of the ",
                 "best; the penalty is not sharply identified. Report the region.")
 
@@ -513,7 +537,8 @@ mgcca_select_lambda <- function(x, nfac = 2, gamma = NULL, lambda = NULL,
 #' }
 #' X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), cells = mk(X3))
 #'
-#' sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3)
+#' sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3,
+#'                            seed = 1)
 #' print(sel)
 #' @export
 #' @method print mgcca_lambda

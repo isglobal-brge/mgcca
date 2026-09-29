@@ -48,6 +48,9 @@ table(sig$table)
 
 ## only the clinical table
 getSignif(fit, df = "clinical", pval.cut = 0.01)
+
+## or several tables at once, by position
+table(getSignif(fit, df = c(2, 3), pval.cut = 0.01)$table)
 }
 \seealso{
 \code{\link{topVars}}, \code{\link{plotVariables}}

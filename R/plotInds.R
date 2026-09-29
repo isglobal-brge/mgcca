@@ -13,7 +13,8 @@
 #' @param ax1,ax2 the components on the horizontal and vertical axes. Defaults 1
 #'   and 2.
 #' @param col.list vector of colours, one per level of \code{group}. When
-#'   omitted a built-in palette is used; it must be at least as long as the
+#'   omitted a fixed built-in palette is used, so repeated calls give the same
+#'   colours and no random number is drawn; it must be at least as long as the
 #'   number of levels.
 #' @param print.labels logical; when \code{TRUE} the individual names are
 #'   written instead of plotting points (using \pkg{wordcloud} to spread the
@@ -47,13 +48,13 @@
 #' @export
 #' @importFrom ggthemes geom_rangeframe
 #' @importFrom graphics abline grid legend points text
-#' @importFrom grDevices colors
+#' @importFrom grDevices hcl.colors
 
 
 plotInds <- function(x, group, ax1=1, ax2=2, col.list, print.labels=FALSE,
                     cex.label=0.8, pos.leg = "bottomright", main = NULL, ...){
   if (!inherits(x, "mgcca"))
-    stop("x must be an object of class 'rgcca'")
+    stop("x must be an object of class 'mgcca'")
   if (missing(group))
     group <- as.factor(rep(1, nrow(x$Y)))
   else {
@@ -66,7 +67,12 @@ plotInds <- function(x, group, ax1=1, ax2=2, col.list, print.labels=FALSE,
   comp1 <- x$Y[, ax1]
   comp2 <- x$Y[, ax2]
   if (missing(col.list)){
-    mycols <-  c("red", "blue", "darkgreen", "orange", "violet", sample(colors()))
+    ## Fixed palette: the five named colours, extended when there are more
+    ## levels by a deterministic qualitative sequence. Nothing here draws a
+    ## random number, so the calling session's RNG stream is left untouched.
+    mycols <- c("red", "blue", "darkgreen", "orange", "violet")
+    if (levs > length(mycols))
+      mycols <- c(mycols, hcl.colors(levs - length(mycols), palette = "Dark 3"))
     col.list <- mycols[seq_len(levs)]
   }
   if (length(col.list) < levs)

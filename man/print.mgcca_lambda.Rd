@@ -32,7 +32,8 @@ mk  <- function(d, j = NULL) {
 }
 X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), cells = mk(X3))
 
-sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3)
+sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3,
+                           seed = 1)
 print(sel)
 }
 \seealso{

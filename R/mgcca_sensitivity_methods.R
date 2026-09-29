@@ -1,3 +1,17 @@
+#' @details \code{print()} reports the settings the result was produced under
+#'   -- how many queries and blocks, the grouping, the backend, the rank and
+#'   where the ridge came from -- followed by the \code{overall} table, and
+#'   states plainly when the retained and discarded subspaces are not
+#'   separated, in which case the first-order expansion these numbers rest on
+#'   does not hold.
+#'
+#' @param object An object of class \code{"mgcca_sensitivity"}, as returned by
+#'   \code{mgcca_sensitivity()}.
+#' @param ... Ignored.
+#' @return \code{print()} returns its argument invisibly, and
+#'   \code{summary()} returns \code{object} invisibly; both are called for what
+#'   they write to the console.
+#' @rdname mgcca_sensitivity
 #' @export
 print.mgcca_sensitivity <- function(x, ...) {
     s <- x$settings
@@ -27,6 +41,12 @@ print.mgcca_sensitivity <- function(x, ...) {
     invisible(x)
 }
 
+#' @details \code{summary()} prints all of that and then the per-block
+#'   decomposition and, when the result carries one, the top participants by
+#'   sensitivity contribution. The share it displays there is taken against
+#'   the query's own total, not the \code{by_individual} table's
+#'   \code{share_total}, which is a share within one block.
+#' @rdname mgcca_sensitivity
 #' @export
 summary.mgcca_sensitivity <- function(object, ...) {
     print(object)

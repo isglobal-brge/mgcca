@@ -12,9 +12,18 @@
 #' @param multiassayexperiment a \code{MultiAssayExperiment} object whose assays
 #'   carry annotation (\code{rowRanges}, or \code{rowData} for the assay pointed
 #'   at by \code{meth.index}).
-#' @param gen.coords must be a GRanges object
+#' @param gen.coords a \code{GRanges} object holding \emph{one} region. Several
+#'   ranges are an error: pass them one at a time.
 #' @param meth.index is the index where the methylation data (or a SummarizedExperiment non Ranged) is located inside the mae.
-#' @param col.name column name
+#' @param col.name name of the \code{rowData} column of the assay pointed at by
+#'   \code{meth.index} that holds the feature position, in the same coordinate
+#'   system as \code{gen.coords}.
+#' @param seqname.col name of the \code{rowData} column of that same assay that
+#'   holds the chromosome, so that features at the same position on another
+#'   chromosome are dropped. The default \code{NULL} looks for a column called
+#'   (case-insensitively) \code{seqnames}, \code{seqname}, \code{chr},
+#'   \code{chrom} or \code{chromosome}; when none is found the position filter
+#'   is applied on its own and a warning is issued.
 #' @return A \code{MultiAssayExperiment} with the same assays as
 #'   \code{multiassayexperiment}, each restricted to the features lying inside
 #'   \code{gen.coords}.
@@ -29,13 +38,15 @@
 #'   data(cardiovascular)
 #'   sel <- rownames(X2)[1:20]
 #'
-#'   ## a non-ranged assay (methylation): positions live in rowData
+#'   ## a non-ranged assay (methylation): positions live in rowData, and the
+#'   ## chromosome is read from the 'chr' column without having to name it
 #'   m1 <- t(as.matrix(X1[rownames(X1) %in% sel, 1:8, drop = FALSE]))
 #'   se1 <- SummarizedExperiment(
 #'       assays  = list(beta = m1),
-#'       rowData = DataFrame(Genomic_Coordinate = seq(1000, 8000,
-#'                                                    length.out = nrow(m1)),
-#'                           chr = "chr1",
+#'       rowData = DataFrame(position = seq(1000, 8000,
+#'                                          length.out = nrow(m1)),
+#'                           chr = rep(c("chr1", "chr2"),
+#'                                     length.out = nrow(m1)),
 #'                           row.names = rownames(m1)))
 #'
 #'   ## a ranged assay: positions live in rowRanges
@@ -51,14 +62,14 @@
 #'
 #'   region <- GRanges(seqnames = "chr1", ranges = IRanges(start = 1000,
 #'                                                         end = 5000))
-#'   sub <- genCoords(mae, region, meth.index = 1,
-#'                    col.name = "Genomic_Coordinate")
-#'   dim(sub[[1]])   # methylation restricted to the region
+#'   sub <- genCoords(mae, region, meth.index = 1, col.name = "position")
+#'   dim(sub[[1]])   # methylation, region and chromosome
 #'   dim(sub[[2]])   # cells restricted to the region
 #' }
 #' @export
 
-genCoords <- function(multiassayexperiment, gen.coords, meth.index, col.name){
+genCoords <- function(multiassayexperiment, gen.coords, meth.index, col.name,
+                      seqname.col = NULL){
 
   # Check that the input is a MultiAssayExperiment
   if (!inherits(multiassayexperiment, "MultiAssayExperiment"))
@@ -68,6 +79,11 @@ genCoords <- function(multiassayexperiment, gen.coords, meth.index, col.name){
   if (!inherits(gen.coords, "GRanges"))
     stop("'gen.coords' must be a 'GRanges' object \n")
 
+  # A single region: start() / end() would recycle silently over several ranges
+  if (length(gen.coords) != 1L)
+    stop("'gen.coords' must hold exactly one range, got ", length(gen.coords),
+         ". Subset it, or call 'genCoords' once per range. \n", call. = FALSE)
+
   subset.names <- list()
 
   for (assay in seq_along(multiassayexperiment)) {
@@ -75,8 +91,12 @@ genCoords <- function(multiassayexperiment, gen.coords, meth.index, col.name){
     # Check which type of omics data is each assay
     # No RangedSummarizedExperiment (e.g. Methylation)
     if (assay == meth.index) {
+      if (missing(col.name))
+        stop("'col.name' is required: it names the rowData column holding the ",
+             "position of the features of the assay given by 'meth.index' \n",
+             call. = FALSE)
       # Obtain CpGs names
-      subset.names[[names(MultiAssayExperiment::experiments(multiassayexperiment)[assay])]] <- norangedCoords(multiassayexperiment[[assay]], gen.coords, col.name = "Genomic_Coordinate")
+      subset.names[[names(MultiAssayExperiment::experiments(multiassayexperiment)[assay])]] <- norangedCoords(multiassayexperiment[[assay]], gen.coords, col.name = col.name, seqname.col = seqname.col)
     }
     # RangedSummarizedExperiment (e.g. RNA-seq, miRNA, proteomics, etc)
     else {
@@ -114,28 +134,62 @@ rangedCoords <- function(rangedsummarizedexperiment, gen.coords){
 # Subset of Methylation CpGs within the specific genomic coordinates for a SummarizedExperiment object
 # Must specify the name of the column where the genomic coordinate is
 
-norangedCoords <- function(summarizedexperiment, gen.coords, col.name){
+norangedCoords <- function(summarizedexperiment, gen.coords, col.name,
+                           seqname.col = NULL){
 
   # Check if there is rowData (annotation)
-  if (length(SummarizedExperiment::rowData(summarizedexperiment)) == 0)
+  row.data <- SummarizedExperiment::rowData(summarizedexperiment)
+  if (length(row.data) == 0)
     stop("There is no rowData in the given `SummarizedExperiment`. Do or obtain the annotation data for the Methylation
          assay in order to have the genomic coordinates for all the CpGs. \n")
 
-  # Check Genomic Coordinates column from rowData is numeric or integer, if not convert
-  if (! class(SummarizedExperiment::rowData(summarizedexperiment)[[col.name]]) %in% c("numeric","integer"))
-    SummarizedExperiment::rowData(summarizedexperiment)[[col.name]] <- as.numeric(SummarizedExperiment::rowData(summarizedexperiment)[[col.name]])
+  if (is.null(col.name) || !(col.name %in% colnames(row.data)))
+    stop("'col.name' must name a column of the rowData of the assay given by ",
+         "'meth.index'; '", col.name, "' is not one of: ",
+         paste(colnames(row.data), collapse = ", "), " \n", call. = FALSE)
 
-  # Find which CpGs in the Methylation assay are within our genomic coordinates, and obtain their names
-  cpgs.names <- rownames(SummarizedExperiment::rowData(summarizedexperiment)[SummarizedExperiment::rowData(summarizedexperiment)[[col.name]] >= BiocGenerics::start(gen.coords) & SummarizedExperiment::rowData(summarizedexperiment)[[col.name]] <= BiocGenerics::end(gen.coords), ])
+  # Check Genomic Coordinates column from rowData is numeric or integer, if not convert
+  positions <- row.data[[col.name]]
+  if (!is.numeric(positions))
+    positions <- as.numeric(positions)
+
+  # Find which CpGs in the Methylation assay are within our genomic coordinates
+  keep <- positions >= BiocGenerics::start(gen.coords) &
+          positions <= BiocGenerics::end(gen.coords)
+  keep[is.na(keep)] <- FALSE
+
+  # Position alone does not identify a locus: drop features sitting at the same
+  # coordinate on a different chromosome.
+  if (is.null(seqname.col))
+    seqname.col <- .seqnameColumn(colnames(row.data))
+  if (is.null(seqname.col)) {
+    warning("no chromosome column found in the rowData of the non-ranged ",
+            "assay, so features are selected on position alone. Give ",
+            "'seqname.col' to filter on the chromosome as well.",
+            call. = FALSE)
+  } else {
+    if (!(seqname.col %in% colnames(row.data)))
+      stop("'seqname.col' must name a column of the rowData of the assay ",
+           "given by 'meth.index'; '", seqname.col, "' is not one of: ",
+           paste(colnames(row.data), collapse = ", "), " \n", call. = FALSE)
+    keep <- keep & as.character(row.data[[seqname.col]]) ==
+                   as.character(SummarizedExperiment::seqnames(gen.coords))
+    keep[is.na(keep)] <- FALSE
+  }
+
+  # Obtain their names
+  cpgs.names <- rownames(row.data)[keep]
   cpgs.names
 
 }
 
+# The chromosome column of a rowData(), looked up by the usual spellings.
+# Returns NULL when none of them is present.
 
-### NOTES ###
-
-# Una función por cada omica/assay para hacer el subset
-# Qué hacer con la anotación? Si el assay no tiene rowData, hay que hacer la anotación, porque sino no se puede hacer
-# el subset. Es mejor decirle al usuario que lo haga él o implementarlo en la función? Lo puedo poner en el ejemplo.
-
+.seqnameColumn <- function(nms){
+  candidates <- c("seqnames", "seqname", "chr", "chrom", "chromosome")
+  hit <- match(candidates, tolower(nms))
+  hit <- hit[!is.na(hit)]
+  if (length(hit) == 0) NULL else nms[hit[1L]]
+}
 

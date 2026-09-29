@@ -9,6 +9,26 @@ suppressMessages({
 
 fixture_path <- function(name) testthat::test_path("..", "data", name)
 
+# Temporary HDF5 files. `h5_tmp()` hands out a path and records it; a file that
+# calls `h5_cleanup_on_exit()` has every path it took removed once its tests are
+# done, so a build machine is not left carrying them for the rest of its run.
+.h5_tmp_reg <- new.env(parent = emptyenv())
+.h5_tmp_reg$paths <- character(0)
+
+h5_tmp <- function() {
+  p <- tempfile(fileext = ".h5")
+  .h5_tmp_reg$paths <- c(.h5_tmp_reg$paths, p)
+  p
+}
+
+h5_cleanup_on_exit <- function(env = testthat::teardown_env()) {
+  withr::defer({
+    try(BigDataStatMeth::hdf5_close_all(), silent = TRUE)
+    unlink(.h5_tmp_reg$paths, force = TRUE)
+    .h5_tmp_reg$paths <- character(0)
+  }, envir = env)
+}
+
 reference_dir <- function(fixture, method)
   testthat::test_path("..", "data", "reference",
                       sub("\\.rds$", "", fixture), method)

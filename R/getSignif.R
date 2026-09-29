@@ -35,6 +35,9 @@
 #'
 #' ## only the clinical table
 #' getSignif(fit, df = "clinical", pval.cut = 0.01)
+#'
+#' ## or several tables at once, by position
+#' table(getSignif(fit, df = c(2, 3), pval.cut = 0.01)$table)
 #' @export
 
 
@@ -45,13 +48,15 @@ getSignif <- function(x, df=NA, pval.cut=0.05, ...){
   xx <- x$pval.cor
 
   if(is.null(xx))
-      stop("no p-values are available. Run again 'mgcca' with 'pval=TRUE'")
+      stop("no p-values are available in 'x'. Collect them with ",
+           "mgcca_results(..., outputs = c(\"pval\", ...)), or leave ",
+           "'outputs' at its default NULL, which collects everything")
 
   datasets <- names(xx)
-  if(is.na(df))
-    df <- seq_along(xx) else
-      if (!all(df %in% seq_along(datasets)) & !all(df %in% datasets))
-        stop("selected table in 'df' is not a valid name. Try a number or \n
+  if (length(df) == 1L && is.na(df))
+    df <- seq_along(xx)
+  else if (!all(df %in% seq_along(datasets)) && !all(df %in% datasets))
+    stop("selected table in 'df' is not a valid name. Try a number or \n
              a correct name")
 
   ns.sig <- NULL
@@ -62,10 +67,18 @@ getSignif <- function(x, df=NA, pval.cut=0.05, ...){
       datasets.i <- i
     else
       datasets.i <- datasets[i]
-    ns.sig.i <- cbind(ns[apply(idf < pval.cut, 1, any)], datasets.i)
-    ns.sig <- rbind(ns.sig, ns.sig.i)
+    ns.i <- ns[apply(idf < pval.cut, 1, any)]
+    # A table with no significant variable contributes no row: cbind() would
+    # drop the zero-length side and hand rbind() a one-column matrix.
+    if (length(ns.i) == 0L)
+      next
+    ns.sig <- rbind(ns.sig, cbind(ns.i, datasets.i))
   }
+  if (is.null(ns.sig))
+    return(data.frame(variable = character(0), table = character(0),
+                      stringsAsFactors = FALSE))
   ans <- data.frame(ns.sig)
   colnames(ans) <- c("variable", "table")
+  rownames(ans) <- NULL
   ans
 }

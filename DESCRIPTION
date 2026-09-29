@@ -1,9 +1,8 @@
 Package: mgcca
 Type: Package
-Title: Generalized Canonical Correlation Analysis having missing
-    individuals
-Version: 0.99.3
-Date: 2026-09-17
+Title: Generalized Canonical Correlation Analysis with Missing Individuals
+Version: 0.99.4
+Date: 2026-09-29
 Authors@R:
   c(  person( given = "Dolors",
               family = "Pelegri-Siso",
@@ -25,10 +24,11 @@ Description: Implements Generalized Canonical Correlation Analysis (GCCA)
     directly on HDF5 matrices via
     the BigDataStatMeth C++ API to scale computations; R functions are thin
     wrappers around the C++ core.
-Depends: R (>= 4.5.0),
-    BigDataStatMeth (>= 2.0.6)
-Imports: MASS,
+Depends: R (>= 4.5.0)
+Imports: BigDataStatMeth (>= 2.0.6),
+    MASS,
     rlang (>= 1.1.0),
+    withr,
     Rcpp (>= 1.0.6),
     ggplot2 (>= 3.4.0),
     ggthemes,
@@ -53,7 +53,11 @@ Suggests: BiocStyle,
     BiocGenerics,
     made4,
     RSpectra,
-    GenomeInfoDb
+    GenomeInfoDb,
+    curatedTCGAData,
+    TCGAutils,
+    TxDb.Hsapiens.UCSC.hg19.knownGene,
+    org.Hs.eg.db
 SystemRequirements: GNU make, C++17
 License: MIT + file LICENSE
 URL: https://isglobal-brge.github.io/mgcca/,

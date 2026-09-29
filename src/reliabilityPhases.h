@@ -155,6 +155,7 @@ inline RefFit reference_fit(const std::vector<Eigen::MatrixXd>& Glist,
     F.Rlist.resize(J);
     Eigen::MatrixXd M = Eigen::MatrixXd::Zero(n, n);
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         Eigen::MatrixXd A = Glist[j];
         A.diagonal().array() += lambda[j];
         // LDLT: the ridge makes A symmetric positive definite, and a decomposition

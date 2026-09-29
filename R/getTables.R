@@ -8,8 +8,8 @@
 #' @param multiassayexperiment MultiAssayExperiment
 #' @return A list of matrices, one per assay, named after the assays and each
 #'   transposed to individuals-by-variables. The list carries class
-#'   \code{"ListMAE"}, which \code{\link{matrix.chr2num}} requires.
-#' @seealso \code{\link{matrix.chr2num}}, \code{\link{mgcca}}
+#'   \code{"ListMAE"}, which \code{\link{matrixChr2Num}} requires.
+#' @seealso \code{\link{matrixChr2Num}}, \code{\link{mgcca}}
 #' @examples
 #' if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
 #'   data(cardiovascular)

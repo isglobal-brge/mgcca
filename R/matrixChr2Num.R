@@ -25,11 +25,11 @@
 #'
 #'   tabs <- getTables(mae)
 #'   class(tabs[[1]][1, 1])          # "character"
-#'   tabs <- matrix.chr2num(tabs, 1)
+#'   tabs <- matrixChr2Num(tabs, 1)
 #'   class(tabs[[1]][1, 1])          # "numeric"
 #' }
 #' @export
-matrix.chr2num <- function(listMAE, index) {
+matrixChr2Num <- function(listMAE, index) {
 
   # Check that the input is of ListMAE class
   if (!inherits(listMAE, "ListMAE"))

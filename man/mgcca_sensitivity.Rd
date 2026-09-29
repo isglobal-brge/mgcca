@@ -2,6 +2,8 @@
 % Please edit documentation in R/mgcca_sensitivity.R
 \name{mgcca_sensitivity}
 \alias{mgcca_sensitivity}
+\alias{print.mgcca_sensitivity}
+\alias{summary.mgcca_sensitivity}
 \title{Sensitivity of the shared subspace to a participant-level query}
 \usage{
 mgcca_sensitivity(
@@ -17,12 +19,18 @@ mgcca_sensitivity(
   store = FALSE,
   threads = NULL
 )
+
+\method{print}{mgcca_sensitivity}(x, ...)
+
+\method{summary}{mgcca_sensitivity}(object, ...)
 }
 \arguments{
 \item{x}{A fitted object of class \code{"mgcca"}. It must carry a descriptor
 pointing at an HDF5 file that still contains the input blocks: the source
 data is required, and a results-only object is refused rather than
-half-processed. Use \code{\link{mgcca_load}} to obtain one from a file.}
+half-processed. Use \code{\link{mgcca_load}} to obtain one from a file.
+For the \code{print} method documented below, an object of class
+\code{"mgcca_sensitivity"} instead.}
 
 \item{query}{Numeric vector or matrix over participants. A vector must be
 named; a matrix must have row names, and column names that are unique
@@ -67,6 +75,11 @@ blocked path can be exercised on small data.}
 write to a user's file unasked.}
 
 \item{threads}{Optional thread count.}
+
+\item{object}{An object of class \code{"mgcca_sensitivity"}, as returned by
+\code{mgcca_sensitivity()}.}
+
+\item{...}{Ignored.}
 }
 \value{
 An object of class \code{"mgcca_sensitivity"}: a list with
@@ -128,6 +141,10 @@ An object of class \code{"mgcca_sensitivity"}: a list with
   individual-level calibration has been established. The reported values are
   sensitivity contributions, not variance, uncertainty, causal influence, or
   reliability guarantees.
+
+\code{print()} returns its argument invisibly, and
+  \code{summary()} returns \code{object} invisibly; both are called for what
+  they write to the console.
 }
 \description{
 Measures how much of a participant-level quantity -- a phenotype,
@@ -170,6 +187,19 @@ detected from the output.
 \strong{What this is not.} These are first-order sensitivity coefficients of a
 fitted operator. They are not causal, and they are not a psychometric
 reliability coefficient.
+
+\code{print()} reports the settings the result was produced under
+  -- how many queries and blocks, the grouping, the backend, the rank and
+  where the ridge came from -- followed by the \code{overall} table, and
+  states plainly when the retained and discarded subspaces are not
+  separated, in which case the first-order expansion these numbers rest on
+  does not hold.
+
+\code{summary()} prints all of that and then the per-block
+  decomposition and, when the result carries one, the top participants by
+  sensitivity contribution. The share it displays there is taken against
+  the query's own total, not the \code{by_individual} table's
+  \code{share_total}, which is a share within one block.
 }
 \examples{
 ## A small three-block slice of the shipped cohort. The reliability layer
@@ -203,6 +233,9 @@ sens
 ## Read the ratio with its components, never alone.
 sens$overall
 sens$by_block
+
+## summary() adds the per-block decomposition to what print() shows.
+summary(sens)
 }
 \seealso{
 \code{\link{mgcca_block_profile}} to reformat the per-block

@@ -98,6 +98,7 @@ inline void run_normalize(const std::string& filename, const std::string& in_gro
                           const std::vector<std::string>& datasets,
                           bool center, bool scale, Rcpp::Nullable<int> threads) {
     for (const std::string& ds : datasets) {
+        Rcpp::checkUserInterrupt();
         std::unique_ptr<BigDataStatMeth::hdf5Dataset> dsA(
             new BigDataStatMeth::hdf5Dataset(filename, in_group, ds, false));
         dsA->openDataset();
@@ -171,6 +172,7 @@ inline Rcpp::CharacterVector run_getK(const std::string& filename,
     for (std::size_t k = 0; k < m; ++k) rn_cv[k] = rn[k];
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         std::unique_ptr<BigDataStatMeth::hdf5Dataset> dsS(
             new BigDataStatMeth::hdf5Dataset(filename, in_group, datasets[j], false));
         dsS->openDataset();
@@ -194,6 +196,7 @@ inline Rcpp::CharacterVector run_getK(const std::string& filename,
         const std::size_t budget = 4000000;                 // ~32 MB of doubles
         const std::size_t bcols = std::max<std::size_t>(1, budget / std::max<std::size_t>(1, nj));
         for (std::size_t c0 = 0; c0 < pj; c0 += bcols) {
+            Rcpp::checkUserInterrupt();
             const std::size_t bw = std::min(bcols, pj - c0);
             Rcpp::NumericMatrix S((int)nj, (int)bw);         // source block (n_j x bw)
             {   // read X_j[all rows, c0:c0+bw] (HDF5 axes swapped vs R)
@@ -234,6 +237,7 @@ inline void run_XKX(const std::string& filename, const std::string& tmp_group,
     const std::string gX = tmp_group + "/X";
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         const std::string& ds = datasets[j];
         {   // Mgram = X'X
             std::unique_ptr<BigDataStatMeth::hdf5Dataset> dsX(
@@ -323,6 +327,7 @@ inline void run_svd(const std::string& filename, const std::string& tmp_group,
         throw std::runtime_error("penalized needs lambda of length #tables");
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         const std::string& ds = datasets[j];
         // G = X X'  (m x m) via out-of-core tcrossprod (isSymmetric)
         {
@@ -402,6 +407,7 @@ inline Rcpp::NumericVector run_eigen(const std::string& filename,
     const std::size_t budget = 4000000;
     const std::size_t brows = std::max<std::size_t>(1, budget / std::max<std::size_t>(1, m));
     for (std::size_t r0 = 0; r0 < m; r0 += brows) {
+        Rcpp::checkUserInterrupt();
         const std::size_t br = std::min(brows, m - r0);
         Eigen::MatrixXd buf = Eigen::MatrixXd::Zero((Eigen::Index)br, (Eigen::Index)m);
         for (std::size_t j = 0; j < J; ++j) {
@@ -467,6 +473,7 @@ inline Rcpp::NumericVector run_eigen(const std::string& filename,
         const std::size_t br0 = std::max<std::size_t>(1, bud / std::max<std::size_t>(1, m));
         double num2 = 0.0, den2 = 0.0;
         for (std::size_t r = 0; r < m; r += br0) {
+            Rcpp::checkUserInterrupt();
             const std::size_t br = std::min(br0, m - r);
             Rcpp::NumericMatrix Sb((int)br, (int)m);
             std::vector<hsize_t> off = {0, (hsize_t)r}, cnt = {(hsize_t)m, (hsize_t)br},
@@ -578,6 +585,7 @@ inline void run_cor_ave(const std::string& filename, const std::string& tmp_grou
     for (int c = 0; c < nfac; ++c) comp[c] = "comp" + std::to_string(c + 1);
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         const std::string& ds = datasets[j];
         std::unique_ptr<BigDataStatMeth::hdf5Dataset> dsX(
             new BigDataStatMeth::hdf5Dataset(filename, tmp_group + "/X", ds, false));
@@ -612,6 +620,7 @@ inline void run_cor_ave(const std::string& filename, const std::string& tmp_grou
         const std::size_t budget = 4000000;
         const std::size_t bcols = std::max<std::size_t>(1, budget / std::max<std::size_t>(1, m));
         for (std::size_t c0 = 0; c0 < pj; c0 += bcols) {
+            Rcpp::checkUserInterrupt();
             const std::size_t bw = std::min(bcols, pj - c0);
             Rcpp::NumericMatrix Xb((int)m, (int)bw);        // block of variables (m x bw)
             {
@@ -689,6 +698,7 @@ inline void run_scores(const std::string& filename, const std::string& tmp_group
     };
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         const std::string& ds = datasets[j];
         Rcpp::CharacterVector rn = read_rownames(filename, gX, ds);
         Rcpp::CharacterVector varnames;
@@ -761,6 +771,7 @@ inline void run_scores_svd(const std::string& filename, const std::string& tmp_g
     };
 
     for (std::size_t j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         const std::string& ds = datasets[j];
         Rcpp::CharacterVector rn = read_rownames(filename, tmp_group + "/X", ds);
         Rcpp::CharacterVector varnames;

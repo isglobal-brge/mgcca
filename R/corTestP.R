@@ -6,8 +6,9 @@
 #'   between-table correlations into p-values, and exported because it is useful
 #'   on its own.
 #'
-#' @details Despite its name (kept for backward compatibility) this is a plain
-#'   function, not an S3 method: \code{stats::cor.test} is not a generic.
+#' @details This is a plain function, not an S3 method: \code{stats::cor.test}
+#'   is not a generic, and the name carries no dot so that it cannot be read as
+#'   one.
 #'
 #' @param r Correlation coefficient.
 #' @param n Sample size (>= 3).
@@ -16,12 +17,12 @@
 #'   p-values from a t distribution on \code{n - 2} degrees of freedom.
 #'
 #' @examples
-#' cor.test.p(0.35, 100)
-#' cor.test.p(c(0.1, 0.5, 0.9), 50)
+#' corTestP(0.35, 100)
+#' corTestP(c(0.1, 0.5, 0.9), 50)
 #'
 #' @importFrom stats pt
-#' @export cor.test.p
-cor.test.p <- function(r, n)
+#' @export
+corTestP <- function(r, n)
 {
 
   t <- (r*sqrt(n-2))/sqrt(1-r^2)

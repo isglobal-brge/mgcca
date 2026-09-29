@@ -7,7 +7,7 @@
 
 > Generalized Canonical Correlation Analysis with **missing individuals**,
 > computed **out-of-core** on HDF5 through
-> [BigDataStatMeth](https://github.com/isglobal-brge/BigDataStatMeth).
+> [BigDataStatMeth](https://cran.r-project.org/package=BigDataStatMeth).
 
 `mgcca` integrates several data tables into a small set of shared latent
 components, even when the tables describe **overlapping but not identical** sets
@@ -49,33 +49,31 @@ needed to reload them are written back to the HDF5 file.
 
 ## Installation
 
-`mgcca` depends on BigDataStatMeth (GitHub) and on Bioconductor packages
-(`Rhdf5lib`, `MultiAssayExperiment`, …):
+Install `mgcca` from Bioconductor:
 
 ```r
-# install.packages("remotes")
-# install.packages("BiocManager")
-
-# Bioconductor dependencies
-BiocManager::install(c("Rhdf5lib", "MultiAssayExperiment",
-                       "GenomeInfoDb", "BiocStyle"))
-
-# the out-of-core engine
-remotes::install_github("isglobal-brge/BigDataStatMeth")
-
-# mgcca
-remotes::install_github("isglobal-brge/mgcca")
+if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+BiocManager::install("mgcca")
 ```
 
-An HDF5 toolchain is required (provided by `Rhdf5lib`) together with a C++17
-compiler.
+This pulls in every dependency automatically: the out-of-core engine
+`BigDataStatMeth` (CRAN) and the Bioconductor packages `Rhdf5lib`,
+`SummarizedExperiment` and `impute`. An HDF5 toolchain is required (provided by
+`Rhdf5lib`) together with a C++17 compiler.
+
+### Development version
+
+The in-development sources live at
+<https://github.com/isglobal-brge/mgcca>; released versions are installed with
+the command above.
 
 ## Quick start
 
 ```r
 library(mgcca)
 
-# a shipped 3-table cardiovascular example with missing individuals
+# a shipped 3-table simulated cardiovascular example with missing individuals
 data(cardiovascular)
 X <- list(methylation = as.matrix(X1),
           clinical    = as.matrix(X2),

@@ -3,7 +3,7 @@
 \name{reliability_read_full_test}
 \alias{reliability_read_full_test}
 \title{K3a orientation check: read an HDF5 dataset via the EXACT helper the kernel uses (mgcca::read_full)
-so an asymmetric fixture can prove no hidden transpose (r198 §4).}
+so that a deliberately asymmetric fixture can demonstrate that no transpose is applied along the way.}
 \usage{
 reliability_read_full_test(file, group, dataset)
 }
@@ -13,6 +13,6 @@ A numeric matrix: the HDF5 dataset read back in the R view through the
 }
 \description{
 K3a orientation check: read an HDF5 dataset via the EXACT helper the kernel uses (mgcca::read_full)
-so an asymmetric fixture can prove no hidden transpose (r198 §4).
+so that a deliberately asymmetric fixture can demonstrate that no transpose is applied along the way.
 }
 \keyword{internal}

@@ -8,12 +8,17 @@
 #'   \code{\link{plotVariables}} is the modern per-table replacement and returns
 #'   a \code{ggplot} object.
 #'
+#'   Use \code{plotVars} to compare several tables at once -- one base-graphics
+#'   panel per table, drawn through \pkg{made4}, with the same chosen variables
+#'   highlighted in each -- and \code{\link{plotVariables}} to look at a single
+#'   table in detail, as a \pkg{ggplot2} correlation circle.
+#'
 #'   Requires the \pkg{made4} package (Suggests).
 #'
 #' @param x an object of class 'mgcca'
 #' @param var character vector of variable names to highlight in every panel.
 #'   Default \code{NA}, i.e. highlight nothing.
-#' @param axes the two components to plot. Default \code{1:2}.
+#' @param axes the two components to plot. Default \code{c(1, 2)}.
 #' @param var.col colour(s) for the highlighted variables: either a single
 #'   colour or one per element of \code{var}. Default \code{"red"}.
 #' @param var.lab logical; write the names of the highlighted variables next to
@@ -60,7 +65,7 @@
 
 
 
-plotVars <- function(x, var=NA, axes=1:2,
+plotVars <- function(x, var=NA, axes=c(1, 2),
                      var.col="red", # the length either 1 or length(var)
                      var.lab=FALSE, # T or F
                      bg.var.col="gray", # the length either 1 or length(df)
@@ -108,6 +113,12 @@ plotVars <- function(x, var=NA, axes=1:2,
   #                     layout(matrix(1:n, n/2, byrow=T))
   # }
 
+  # The device is the user's, not ours: the layout and the margins below are
+  # restored on exit, so a call does not silently change every later plot in
+  # the session.
+  op <- par(no.readonly = TRUE)
+  on.exit(par(op), add = TRUE)
+
   if (is.matrix(layout)) {
     layout(layout)
   } else if (is.na(layout)) {
@@ -146,8 +157,8 @@ plotVars <- function(x, var=NA, axes=1:2,
     vars <- as.data.frame(vars)
     colnames(vars) <- c("Variables", "Dataset")
     if (!any(as.logical(vars[,2]))){
-      cat("There are variables names not in your tables \n")
-      print(vars)
+      message("Some variable names are not in your tables:")
+      message(paste(utils::capture.output(print(vars)), collapse = "\n"))
     }
   }
 }

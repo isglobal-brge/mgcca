@@ -126,6 +126,38 @@ test_that("the selection is deterministic in the seed", {
   expect_false(identical(a$fold, c2$fold))
 })
 
+test_that("seeding is the caller's: the default is NULL and the stream survives", {
+  # The default must not seed anything: a package function that seeds by default
+  # replaces the RNG stream of whoever called it.
+  expect_null(formals(mgcca_select_lambda)$seed)
+  expect_null(formals(mgcca_stability)$seed)
+
+  f <- sl_c2()
+
+  # seed = NULL: the folds come from the stream as it stands, so the same outer
+  # seed gives the same selection and a different one gives different folds.
+  set.seed(101)
+  a <- sl_select(f$tables, nfac = 2, lambda = sl_grid, scale_matched = FALSE,
+                 K = 4)
+  set.seed(101)
+  b <- sl_select(f$tables, nfac = 2, lambda = sl_grid, scale_matched = FALSE,
+                 K = 4)
+  a$call <- b$call <- NULL
+  expect_identical(a, b)
+  set.seed(202)
+  c3 <- sl_select(f$tables, nfac = 2, lambda = sl_grid, scale_matched = FALSE,
+                  K = 4)
+  expect_false(identical(a$fold, c3$fold))
+
+  # A supplied seed applies to the fold draw alone: the caller's state is the
+  # state the call found, not the one the seed would leave behind.
+  set.seed(303)
+  before <- .Random.seed
+  invisible(sl_select(f$tables, nfac = 2, lambda = sl_grid,
+                      scale_matched = FALSE, K = 4, seed = 11))
+  expect_identical(.Random.seed, before)
+})
+
 test_that("print() shows the choice and the criterion", {
   f <- sl_c2()
   sel <- sl_select(f$tables, nfac = 2, lambda = sl_grid,

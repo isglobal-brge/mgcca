@@ -423,6 +423,18 @@
     }, numeric(1), USE.NAMES = FALSE)
 }
 
+## Close every open HDF5 handle, keeping the routine progress messages of
+## hdf5_close_all() quiet -- it reports on every call, including when there is
+## nothing to close -- but letting a genuine cleanup failure reach the user as
+## a single warning instead of disappearing into try(silent = TRUE).
+.mgcca_av_close_all <- function(what) {
+    tryCatch(suppressMessages(BigDataStatMeth::hdf5_close_all()),
+             error = function(e)
+                 warning("HDF5 cleanup after ", what, " failed: ",
+                         conditionMessage(e), call. = FALSE))
+    invisible(NULL)
+}
+
 ## Write one double matrix, closing the handle the R6 reader leaves open.
 ## The dataset is removed before it is written rather than overwritten in
 ## place: an audit saved repeatedly into the same file rewrites all of its
@@ -431,13 +443,16 @@
 ## clean creation, and it also releases any handle still pointing at the path.
 .mgcca_av_write <- function(filename, path, m) {
     storage.mode(m) <- "double"
+    ## The dataset usually does not exist yet, and hdf5_remove() signals an
+    ## error in that case, so a failed removal is the normal first-write path
+    ## and stays silent; the write below is what reports a real problem.
     suppressMessages(try(BigDataStatMeth::hdf5_remove(filename, path),
                          silent = TRUE))
-    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
+    .mgcca_av_close_all(paste0("removing '", path, "'"))
     hm <- BigDataStatMeth::hdf5_create_matrix(filename, path, data = m,
                                               dtype = "double", overwrite = TRUE)
     if (!is.null(hm) && is.function(hm$close)) try(hm$close(), silent = TRUE)
-    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
+    .mgcca_av_close_all(paste0("writing '", path, "'"))
     invisible(path)
 }
 
@@ -1469,6 +1484,23 @@ mgcca_audit <- function(data, L, strata = NULL, weights = NULL,
 
 ## ---- methods ----------------------------------------------------------------
 
+#' @details \code{print()} gives the audit as a certificate: the source, the
+#'   sizes, the declared strata, weights and design lines, the support graph
+#'   with its bridges and articulation blocks, the tally of pair codes, and
+#'   every pair or stratum-block cell that raised an advisory, each shown
+#'   beside the value that raised it. It closes by restating that
+#'   \code{structural_checks} is \code{"not_evaluated"}: nothing printed is a
+#'   verdict on identification.
+#'
+#' @param x An object of class \code{"mgcca_audit"}, as returned by
+#'   \code{mgcca_audit()}.
+#' @param object An object of class \code{"mgcca_audit"}, as returned by
+#'   \code{mgcca_audit()}.
+#' @param ... Ignored.
+#' @return \code{print()} returns its argument invisibly and \code{summary()}
+#'   returns \code{object} invisibly; both are called for what they write to
+#'   the console.
+#' @rdname mgcca_audit
 #' @export
 print.mgcca_audit <- function(x, ...) {
     cat("mgcca availability audit (pre-fit; the estimator is not called)\n")
@@ -1530,6 +1562,12 @@ print.mgcca_audit <- function(x, ...) {
     invisible(x)
 }
 
+#' @details \code{summary()} prints all of that and then the full tables: the
+#'   availability by block and by declared stratum, every pair with its
+#'   supports, route and bottleneck, and the representation table. A finite
+#'   entry there evidences positivity for that cell without proving it, and
+#'   the printed note says so.
+#' @rdname mgcca_audit
 #' @export
 summary.mgcca_audit <- function(object, ...) {
     print(object)

@@ -89,6 +89,7 @@ inline SubspaceFit fit_from_grams(const std::string& file, const std::string& gr
     long n = -1;
     R.symG = Eigen::VectorXd(J);
     for (long j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         G[j] = mgcca::read_full(file, group, gram_ds[j]);
         if (G[j].rows() < 1 || G[j].cols() < 1) throw std::runtime_error("subspace: empty Gram");  // r198: before maxCoeff()
         if (G[j].rows() != G[j].cols()) throw std::runtime_error("subspace: Gram not square");
@@ -132,6 +133,7 @@ inline SubspaceFit fit_from_grams(const std::string& file, const std::string& gr
     R.eig_min = Eigen::VectorXd(J); R.eig_max = Eigen::VectorXd(J);
     R.lam_sum_raw = Eigen::VectorXd(J); R.lam_sum_clip = Eigen::VectorXd(J); R.n_clipped = Eigen::VectorXi(J);
     for (long j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         // λ_j = γ · Σ_r ẽ_r / #{ẽ_r > rank_tol·max ẽ}  with ẽ = pmax(η,0) (RAW G_j spectrum, negatives
         // truncated to 0 BEFORE sum/rank -- verbatim lam_from_grams in script 37; topL below does NOT truncate).
         Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eg(0.5 * (G[j] + G[j].transpose()),
@@ -185,6 +187,7 @@ inline SubspaceFit fit_from_grams(const std::string& file, const std::string& gr
     R.cL = Eigen::VectorXd(J); R.rank_num = Eigen::VectorXi(J);
     bool eligible = true;
     for (long j = 0; j < J; ++j) {
+        Rcpp::checkUserInterrupt();
         A[j] = D.asDiagonal() * R.B[j] * D.asDiagonal();
         A[j] = 0.5 * (A[j] + A[j].transpose());
         Eigen::VectorXd ev; Eigen::MatrixXd evec;

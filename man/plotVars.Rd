@@ -7,7 +7,7 @@
 plotVars(
   x,
   var = NA,
-  axes = 1:2,
+  axes = c(1, 2),
   var.col = "red",
   var.lab = FALSE,
   bg.var.col = "gray",
@@ -26,7 +26,7 @@ plotVars(
 \item{var}{character vector of variable names to highlight in every panel.
 Default \code{NA}, i.e. highlight nothing.}
 
-\item{axes}{the two components to plot. Default \code{1:2}.}
+\item{axes}{the two components to plot. Default \code{c(1, 2)}.}
 
 \item{var.col}{colour(s) for the highlighted variables: either a single
 colour or one per element of \code{var}. Default \code{"red"}.}
@@ -68,6 +68,11 @@ Lays out one panel per selected table and, in each, plots the
   interest across tables. This is the original base-graphics plot;
   \code{\link{plotVariables}} is the modern per-table replacement and returns
   a \code{ggplot} object.
+
+  Use \code{plotVars} to compare several tables at once -- one base-graphics
+  panel per table, drawn through \pkg{made4}, with the same chosen variables
+  highlighted in each -- and \code{\link{plotVariables}} to look at a single
+  table in detail, as a \pkg{ggplot2} correlation circle.
 
   Requires the \pkg{made4} package (Suggests).
 }

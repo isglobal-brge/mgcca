@@ -62,6 +62,21 @@ test_that("plot/summary helpers accept the collected object without error", {
   if (requireNamespace("made4", quietly = TRUE))
     expect_no_error(plotVars(fit, nlab = 3))
 
+  # The default palette of plotInds() is fixed: no random number is drawn, so
+  # the caller's random number stream is left exactly as the call found it,
+  # whatever the number of groups.
+  set.seed(404)
+  before <- .Random.seed
+  invisible(plotInds(fit))
+  expect_identical(.Random.seed, before)
+  grp <- factor(rep(c("a", "b", "c", "d", "e", "f", "g"),
+                    length.out = nrow(fit$Y)))
+  invisible(plotInds(fit, group = grp))
+  expect_identical(.Random.seed, before)
+
+  # ... and the wrong-class error names the class the function actually wants.
+  expect_error(plotInds(list()), "class 'mgcca'")
+
   sig <- getSignif(fit, pval.cut = 1e-3)
   expect_true(all(c("variable", "table") %in% names(sig)))
   tv <- topVars(fit, axis = 1, topN = 3)

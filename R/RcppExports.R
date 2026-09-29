@@ -211,10 +211,11 @@ reliability_proj_overlap <- function(Pa, Pb, L) {
 
 #' K3b variant-A small-block Gram via the BigDataStatMeth C++ tcrossprod API: G = Z Z' (participant Gram).
 #' Z (in_group/in_ds) = the subset-standardised block table (participants x features, R view). G is written to
-#' out_group/out_ds (n x n), isSymmetric -- VERBATIM the sealed estimator run_svd/run_XKX pattern
-#' (mgcca_phases.h). BigDataStatMeth::tcrossprod is ADAPTIVE (PATH 1 in-memory preload if A <= ~20% RAM /
-#' PATH 2 block-wise streaming otherwise, r244 §1), not unconditionally out-of-core. No R-side BigDataStatMeth
-#' algebra dispatch enters the certified small-block Gram path (r242 §2 / r248 §3, PORT_FOURTH_KERNEL §H).
+#' out_group/out_ds (n x n), isSymmetric -- the same pattern the estimator's own run_svd / run_XKX phases
+#' use (mgcca_phases.h). BigDataStatMeth::tcrossprod is adaptive rather than unconditionally out-of-core:
+#' it preloads the table in memory when that takes at most about 20% of RAM, and streams it block-wise
+#' otherwise. The small-block Gram path is reached through the C++ API alone; no R-side BigDataStatMeth
+#' algebra dispatch takes part in it.
 #' Returns file, path, nrow, ncol, block_size, threads_requested (n = participants; for binding + the parity report).
 #' @return A list with \code{file}, the \code{path} of the Gram written into the
 #'   HDF5 file, its \code{nrow} and \code{ncol}, the \code{block_size} and
@@ -236,7 +237,7 @@ reliability_subspace_fit <- function(file, group, gram_ds, masks, L, gamma, eps 
 }
 
 #' K3a orientation check: read an HDF5 dataset via the EXACT helper the kernel uses (mgcca::read_full)
-#' so an asymmetric fixture can prove no hidden transpose (r198 §4).
+#' so that a deliberately asymmetric fixture can demonstrate that no transpose is applied along the way.
 #' @return A numeric matrix: the HDF5 dataset read back in the R view through the
 #'   kernel's own reader.
 #' @keywords internal

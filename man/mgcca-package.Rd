@@ -12,6 +12,15 @@ files via the BigDataStatMeth API. Missing cells within a measured
 individual are outside the estimator's scope and must be handled before
 import. See \code{\link{mgcca}} to get started.
 }
+\details{
+See \code{vignette("mgcca_example", package = "mgcca")} for a worked
+analysis and \code{vignette("mgcca_reliability", package = "mgcca")} for
+the sensitivity and stability tools.
+
+Exported names follow one convention: \code{mgcca_*} for the core workflow
+(the fit and the analyses built on it), and camelCase for the helpers
+(data preparation, extraction and plotting).
+}
 \seealso{
 Useful links:
 \itemize{

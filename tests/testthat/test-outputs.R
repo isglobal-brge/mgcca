@@ -1,10 +1,3 @@
-# --- Bioconductor build time -------------------------------------------------
-# This file is one of the four heaviest in the suite. Bioconductor's builders
-# cap `R CMD check` at 10 minutes and this suite is the long pole, so the file
-# is skipped THERE only (`IS_BIOC_BUILD_MACHINE`); it runs in full everywhere
-# else, including on CRAN-style checks and in development.
-testthat::skip_on_bioc()
-
 # =============================================================================
 # Selectable outputs (wave 2, feature 5a).
 #
@@ -20,16 +13,49 @@ testthat::skip_on_bioc()
 # The skipping itself is proved directly: a dataset that a subset does not ask
 # for is DELETED from the file, and the subset still collects while the full
 # collection fails on it.
+#
+# Cost: the shared fixture is cut to 40 individuals and 12 features per block
+# (the individual that only one block carries is kept, so the missing-row case
+# is still covered), and the tests that only READ a fit share a single one.
+# Only the test that deletes a dataset, and the tests that compare two fits to
+# each other, build their own.
 # =============================================================================
+
+# Every temporary HDF5 file this file creates is removed when it is done.
+h5_cleanup_on_exit()
+
+out_tabs <- function(fixture = "mgcca_subset.rds") {
+  tabs <- readRDS(fixture_path(fixture))
+  u    <- Reduce(union, lapply(tabs, rownames))
+  gaps <- unlist(lapply(tabs, function(m) setdiff(u, rownames(m))))
+  ids  <- unique(c(gaps, u))[seq_len(40L)]
+  lapply(tabs, function(m) m[rownames(m) %in% ids, seq_len(12L), drop = FALSE])
+}
 
 out_fit <- function(fixture = "mgcca_subset.rds", method = "penalized",
                     lambda = rep(0.1, 3), scores = TRUE) {
-  tabs <- readRDS(fixture_path(fixture))
+  tabs <- out_tabs(fixture)
   if (!is.null(lambda)) lambda <- rep(lambda[1], length(tabs))
-  h5   <- tempfile(fileext = ".h5")
+  h5   <- h5_tmp()
   desc <- mgcca(tabs, filename = h5, nfac = 2, method = method,
                 lambda = lambda, scores = scores, collect = FALSE)
   list(desc = desc, h5 = h5)
+}
+
+# The read-only fixture, built once and reused. Tests that only call
+# mgcca_results() on the descriptor cannot disturb each other.
+.out_cache <- new.env(parent = emptyenv())
+
+out_shared <- function() {
+  if (is.null(.out_cache$f)) .out_cache$f <- out_fit()
+  .out_cache$f
+}
+
+# The full collection off that fixture. Reading every component back is itself
+# expensive, and it is the same object every time it is asked for.
+out_full <- function() {
+  if (is.null(.out_cache$full)) .out_cache$full <- mgcca_results(out_shared()$desc)
+  .out_cache$full
 }
 
 OUT_ALL <- c("Y", "corsY", "scores", "pval", "weights", "scaling",
@@ -51,7 +77,7 @@ test_that("mgcca() and mgcca_results() take an outputs argument", {
 ## ---- the default is bit-for-bit the old behaviour ---------------------------
 
 test_that("outputs = NULL collects exactly what 1.2.0 collected", {
-  f <- out_fit()
+  f <- out_shared()
   on.exit(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE), add = TRUE)
 
   legacy <- mgcca_results(f$desc)                       # no outputs argument
@@ -66,8 +92,8 @@ test_that("outputs = NULL collects exactly what 1.2.0 collected", {
 })
 
 test_that("mgcca(collect = TRUE) is unchanged when outputs is not given", {
-  tabs <- readRDS(fixture_path("mgcca_subset.rds"))
-  h5a  <- tempfile(fileext = ".h5"); h5b <- tempfile(fileext = ".h5")
+  tabs <- out_tabs()
+  h5a  <- h5_tmp(); h5b <- h5_tmp()
   a <- mgcca(tabs, filename = h5a, nfac = 2, method = "penalized",
              lambda = rep(0.1, length(tabs)), scores = TRUE, collect = TRUE)
   b <- mgcca(tabs, filename = h5b, nfac = 2, method = "penalized",
@@ -83,9 +109,9 @@ test_that("mgcca(collect = TRUE) is unchanged when outputs is not given", {
 ## ---- subsets are subtractive -------------------------------------------------
 
 test_that("a subset returns the requested components, identical to the full ones", {
-  f <- out_fit()
+  f <- out_shared()
   on.exit(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE), add = TRUE)
-  full <- mgcca_results(f$desc)
+  full <- out_full()
 
   sub <- mgcca_results(f$desc, outputs = c("Y", "weights", "eig"))
   expect_s3_class(sub, "mgcca")
@@ -99,9 +125,9 @@ test_that("a subset returns the requested components, identical to the full ones
 })
 
 test_that("every single component can be asked for on its own and matches", {
-  f <- out_fit()
+  f <- out_shared()
   on.exit(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE), add = TRUE)
-  full <- mgcca_results(f$desc)
+  full <- out_full()
   for (i in seq_along(OUT_ALL)) {
     one <- mgcca_results(f$desc, outputs = OUT_ALL[i])
     expect_identical(one[[OBJ_ALL[i]]], full[[OBJ_ALL[i]]])
@@ -111,8 +137,8 @@ test_that("every single component can be asked for on its own and matches", {
 })
 
 test_that("mgcca(outputs = ...) subsets the collected object the same way", {
-  tabs <- readRDS(fixture_path("mgcca_subset.rds"))
-  h5   <- tempfile(fileext = ".h5")
+  tabs <- out_tabs()
+  h5   <- h5_tmp()
   obj  <- mgcca(tabs, filename = h5, nfac = 2, method = "penalized",
                 lambda = rep(0.1, length(tabs)), scores = TRUE, collect = TRUE,
                 outputs = c("Y", "AVE"))
@@ -129,6 +155,7 @@ test_that("mgcca(outputs = ...) subsets the collected object the same way", {
 ## ---- the reads really are skipped -------------------------------------------
 
 test_that("a component that is not requested is not read from the file", {
+  # This one MUTATES its file, so it gets its own fit.
   f <- out_fit()
   on.exit(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE), add = TRUE)
   ds <- f$desc$datasets[1]
@@ -166,7 +193,7 @@ test_that("the read plan lists exactly the components asked for", {
 ## ---- refusals ----------------------------------------------------------------
 
 test_that("an unknown output name is an error, not a silent drop", {
-  f <- out_fit()
+  f <- out_shared()
   on.exit(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE), add = TRUE)
   expect_error(mgcca_results(f$desc, outputs = c("Y", "Ynot")), "Ynot")
   expect_error(mgcca_results(f$desc, outputs = character(0)), "at least one")

@@ -12,7 +12,7 @@ getTables(multiassayexperiment)
 \value{
 A list of matrices, one per assay, named after the assays and each
   transposed to individuals-by-variables. The list carries class
-  \code{"ListMAE"}, which \code{\link{matrix.chr2num}} requires.
+  \code{"ListMAE"}, which \code{\link{matrixChr2Num}} requires.
 }
 \description{
 Turns the assays of a \code{MultiAssayExperiment} into the list
@@ -36,5 +36,5 @@ if (requireNamespace("MultiAssayExperiment", quietly = TRUE)) {
 }
 }
 \seealso{
-\code{\link{matrix.chr2num}}, \code{\link{mgcca}}
+\code{\link{matrixChr2Num}}, \code{\link{mgcca}}
 }

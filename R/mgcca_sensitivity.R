@@ -45,6 +45,8 @@
 #'   pointing at an HDF5 file that still contains the input blocks: the source
 #'   data is required, and a results-only object is refused rather than
 #'   half-processed. Use \code{\link{mgcca_load}} to obtain one from a file.
+#'   For the \code{print} method documented below, an object of class
+#'   \code{"mgcca_sensitivity"} instead.
 #' @param query Numeric vector or matrix over participants. A vector must be
 #'   named; a matrix must have row names, and column names that are unique
 #'   because they become the query identifiers. Participants absent from the
@@ -175,6 +177,9 @@
 #' ## Read the ratio with its components, never alone.
 #' sens$overall
 #' sens$by_block
+#'
+#' ## summary() adds the per-block decomposition to what print() shows.
+#' summary(sens)
 #' @export
 mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
                               lambda = NULL, gamma = 1,

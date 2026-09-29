@@ -2,6 +2,9 @@
 % Please edit documentation in R/mgcca_stability.R
 \name{mgcca_stability}
 \alias{mgcca_stability}
+\alias{print.mgcca_stability}
+\alias{summary.mgcca_stability}
+\alias{plot.mgcca_stability}
 \title{Stability of the shared subspace under resampling}
 \usage{
 mgcca_stability(
@@ -20,10 +23,17 @@ mgcca_stability(
   store = FALSE,
   threads = NULL
 )
+
+\method{print}{mgcca_stability}(x, ...)
+
+\method{summary}{mgcca_stability}(object, ...)
+
+\method{plot}{mgcca_stability}(x, ...)
 }
 \arguments{
 \item{x}{A fitted \code{"mgcca"} object; see \code{\link{mgcca_sensitivity}}
-for what it must carry.}
+for what it must carry. For the \code{print} and \code{plot} methods
+documented below, an object of class \code{"mgcca_stability"} instead.}
 
 \item{method}{\code{"subsample"} (default), \code{"loco"}, or \code{"both"}.
 \code{"loco"} requires \code{group}; \code{"subsample"} does not, so the
@@ -40,8 +50,12 @@ both roles would make it impossible.}
 
 \item{fraction}{Fraction of participants retained in each subsample.}
 
-\item{seed}{Optional seed. The realised resampling plan is archived in the
-result either way, so a run can be reproduced from what it returns.}
+\item{seed}{Optional integer. When supplied, random steps run under this seed
+in a local RNG scope that restores the caller's random-number state
+afterwards; when \code{NULL} (the default) the current RNG stream is used
+as-is. The random step here is the resampling draw. The realised resampling
+plan is archived in the result either way, so a run can be reproduced from
+what it returns even when no seed was given.}
 
 \item{lambda, gamma}{Ridge for the layer's operator; see
 \code{\link{mgcca_sensitivity}}.}
@@ -56,6 +70,11 @@ cannot leave a manifest that no longer describes the data beside it.}
 \item{store}{If \code{TRUE}, persist under \code{RELIABILITY/}. Default
 \code{FALSE}: an analysis function should not write to a user's file
 unasked.}
+
+\item{object}{An object of class \code{"mgcca_stability"}, as returned by
+\code{mgcca_stability()}.}
+
+\item{...}{Ignored.}
 }
 \value{
 An object of class \code{"mgcca_stability"}: a list with
@@ -73,6 +92,11 @@ An object of class \code{"mgcca_stability"}: a list with
   \item{settings, groups, provenance, call}{the record of how it was
     produced. When \code{store = TRUE} a \code{storage} element records the
     HDF5 group written to.}
+
+\code{print()} returns its argument invisibly and
+  \code{summary()} returns \code{object} invisibly, both being called for
+  what they write to the console; \code{plot()} returns a \code{ggplot}
+  object, which draws when printed.
 }
 \description{
 Refits the shared subspace on resamples of the participants and
@@ -111,6 +135,22 @@ to one, so a value well below one is the warning, not the reassurance.
 the full fit and is held fixed; only the participant set changes. So this
 measures stability of the estimated subspace to the sample, not to the whole
 preprocessing pipeline.
+
+\code{print()} reports the resampling settings, then
+  \code{summary_metrics}, then the number of resamples whose refit failed,
+  and closes with the reminder that the rank margin says whether the
+  comparison is well posed rather than whether the components are separated.
+
+\code{summary()} prints all of that and then the ten worst
+  resamples, ordered by overlap, so the tail of the distribution is what is
+  shown rather than its head.
+
+\code{plot()} draws one point per successful resample, overlap
+  against rank margin and coloured by method. Reading the two axes together
+  is the point: a high overlap at a low rank margin compares directions
+  barely present in the shared participants. Resamples whose refit failed
+  carry no overlap and are absent from the panel; they stay in
+  \code{$resamples} with their reason.
 }
 \examples{
 ## A small three-block slice of the shipped cohort. As for
@@ -144,6 +184,11 @@ stab
 ## compares directions barely present in the shared participants.
 stab$summary_metrics
 stab$resamples
+
+## summary() adds the worst resamples; plot() puts the two quantities on
+## the same panel.
+summary(stab)
+plot(stab)
 }
 \seealso{
 \code{\link{mgcca_sensitivity}} for the query-based companion, and

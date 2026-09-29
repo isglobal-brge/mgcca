@@ -145,6 +145,7 @@ inline GramResult present_only_gram(const std::string& file,
     const double nm1 = (double)(n_pr - 1);
 
     for (long f0 = 0; f0 < p; f0 += chunk) {
+        Rcpp::checkUserInterrupt();
         const long fb = std::min<long>(chunk, p - f0);
         // read fb feature-rows x all N participant-cols (R-view fb x N)
         Eigen::MatrixXd blk(fb, N);

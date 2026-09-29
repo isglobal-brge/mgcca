@@ -11,7 +11,7 @@ mgcca_select_lambda(
   lambda = NULL,
   scale_matched = TRUE,
   K = 5,
-  seed = 1,
+  seed = NULL,
   rule = c("argmax", "1se"),
   scale = TRUE,
   min_pair = NULL,
@@ -45,9 +45,12 @@ dimension; a fixed absolute \code{lambda} does not.}
 
 \item{K}{Number of folds. Default 5.}
 
-\item{seed}{Seed for the fold assignment, default 1. The whole procedure is a
-deterministic function of it. Pass \code{NULL} to leave the session's RNG
-stream untouched and let the folds fall where the current stream puts them.}
+\item{seed}{Optional integer. When supplied, random steps run under this seed
+in a local RNG scope that restores the caller's random-number state
+afterwards; when \code{NULL} (the default) the current RNG stream is used
+as-is. The random step here is the fold assignment, which the whole
+selection is a deterministic function of, so pass a seed when you want the
+selection to be reproducible.}
 
 \item{rule}{\code{"argmax"} (default) takes the best mean CV agreement, as in
 the reference calibration. \code{"1se"} takes the most regularised candidate
@@ -153,7 +156,10 @@ X <- list(methylation = mk(X1, 1:20), clinical = mk(X2), cells = mk(X3))
 
 ## Three candidates for the dimensionless ridge, three folds. A real
 ## analysis uses the wider default grid; this one is sized for the example.
-sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3)
+## The folds are drawn at random, so a seed is passed to make the selection
+## reproducible; without one the draw comes from the session's own stream.
+sel <- mgcca_select_lambda(X, nfac = 2, gamma = c(0.01, 0.1, 1), K = 3,
+                           seed = 1)
 sel
 
 ## The whole candidate trace, not only the winner: report the near-optimal

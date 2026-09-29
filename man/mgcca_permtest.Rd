@@ -45,8 +45,26 @@ Builds a null distribution for the mgcca eigenvalues by breaking
   (or a feature subset).
 }
 \examples{
-## Each permutation is a full file-backed re-fit, so even a token number of
-## them takes tens of seconds; the example is kept out of the check budget.
+## A toy run, small enough to execute here: two three-column blocks over 40
+## individuals and nperm = 2. With two permutations the p-values cannot fall
+## below 1/3 and carry no evidence whatever; this call is here so the code
+## itself is exercised, not to test anything.
+u  <- seq_len(40) / 40
+ids <- sprintf("id\%02d", seq_len(40))
+one <- cbind(a = sin(2 * pi * u), b = cos(2 * pi * u), c = u)
+two <- cbind(d = sin(2 * pi * u + 0.3), e = u^2, f = rev(u))
+rownames(one) <- rownames(two) <- ids
+
+h5toy <- tempfile(fileext = ".h5")
+pt0 <- mgcca_permtest(list(one = one, two = two), filename = h5toy,
+                      nperm = 2, nfac = 2, method = "penalized",
+                      lambda = rep(0.1, 2))
+pt0$eigenvalues
+unlink(h5toy)
+
+## The illustration below is a realistic run: each permutation is a full
+## file-backed re-fit, so even a token number of them takes tens of seconds,
+## and it is kept out of the check budget.
 \donttest{
 data(cardiovascular)
 ids <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))[1:60]

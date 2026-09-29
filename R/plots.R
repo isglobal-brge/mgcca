@@ -132,6 +132,11 @@ plotIndividuals <- function(x, group = NULL, comps = c(1, 2), label = FALSE,
 #'   are drawn as labelled arrows, so the plot stays readable even for
 #'   omics-scale tables; the rest are shown as faint points.
 #'
+#'   Use \code{plotVariables} to look at a single table in detail, as a
+#'   \pkg{ggplot2} correlation circle, and \code{\link{plotVars}} to compare
+#'   several tables at once -- one base-graphics panel per table, drawn through
+#'   \pkg{made4}, with the same chosen variables highlighted in each.
+#'
 #' @param x an \code{mgcca} object.
 #' @param table table to display: a name or an index into \code{x$corsY}.
 #'   Default 1.
@@ -140,7 +145,8 @@ plotIndividuals <- function(x, group = NULL, comps = c(1, 2), label = FALSE,
 #'   labelled arrows. Default 10.
 #' @param title plot title. Default: the table name.
 #' @return A \code{ggplot} object.
-#' @seealso \code{\link{plotIndividuals}}, \code{\link{getSignif}}
+#' @seealso \code{\link{plotVars}}, \code{\link{plotIndividuals}},
+#'   \code{\link{getSignif}}
 #' @examples
 #' data(cardiovascular)
 #' u   <- Reduce(union, list(rownames(X1), rownames(X2), rownames(X3)))

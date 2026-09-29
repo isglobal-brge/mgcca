@@ -4,18 +4,34 @@
 \alias{genCoords}
 \title{Subset a MultiAssayExperiment object by specific genomic coordinates}
 \usage{
-genCoords(multiassayexperiment, gen.coords, meth.index, col.name)
+genCoords(
+  multiassayexperiment,
+  gen.coords,
+  meth.index,
+  col.name,
+  seqname.col = NULL
+)
 }
 \arguments{
 \item{multiassayexperiment}{a \code{MultiAssayExperiment} object whose assays
 carry annotation (\code{rowRanges}, or \code{rowData} for the assay pointed
 at by \code{meth.index}).}
 
-\item{gen.coords}{must be a GRanges object}
+\item{gen.coords}{a \code{GRanges} object holding \emph{one} region. Several
+ranges are an error: pass them one at a time.}
 
 \item{meth.index}{is the index where the methylation data (or a SummarizedExperiment non Ranged) is located inside the mae.}
 
-\item{col.name}{column name}
+\item{col.name}{name of the \code{rowData} column of the assay pointed at by
+\code{meth.index} that holds the feature position, in the same coordinate
+system as \code{gen.coords}.}
+
+\item{seqname.col}{name of the \code{rowData} column of that same assay that
+holds the chromosome, so that features at the same position on another
+chromosome are dropped. The default \code{NULL} looks for a column called
+(case-insensitively) \code{seqnames}, \code{seqname}, \code{chr},
+\code{chrom} or \code{chromosome}; when none is found the position filter
+is applied on its own and a warning is issued.}
 }
 \value{
 A \code{MultiAssayExperiment} with the same assays as
@@ -43,13 +59,15 @@ if (requireNamespace("MultiAssayExperiment", quietly = TRUE) &&
   data(cardiovascular)
   sel <- rownames(X2)[1:20]
 
-  ## a non-ranged assay (methylation): positions live in rowData
+  ## a non-ranged assay (methylation): positions live in rowData, and the
+  ## chromosome is read from the 'chr' column without having to name it
   m1 <- t(as.matrix(X1[rownames(X1) \%in\% sel, 1:8, drop = FALSE]))
   se1 <- SummarizedExperiment(
       assays  = list(beta = m1),
-      rowData = DataFrame(Genomic_Coordinate = seq(1000, 8000,
-                                                   length.out = nrow(m1)),
-                          chr = "chr1",
+      rowData = DataFrame(position = seq(1000, 8000,
+                                         length.out = nrow(m1)),
+                          chr = rep(c("chr1", "chr2"),
+                                    length.out = nrow(m1)),
                           row.names = rownames(m1)))
 
   ## a ranged assay: positions live in rowRanges
@@ -65,9 +83,8 @@ if (requireNamespace("MultiAssayExperiment", quietly = TRUE) &&
 
   region <- GRanges(seqnames = "chr1", ranges = IRanges(start = 1000,
                                                         end = 5000))
-  sub <- genCoords(mae, region, meth.index = 1,
-                   col.name = "Genomic_Coordinate")
-  dim(sub[[1]])   # methylation restricted to the region
+  sub <- genCoords(mae, region, meth.index = 1, col.name = "position")
+  dim(sub[[1]])   # methylation, region and chromosome
   dim(sub[[2]])   # cells restricted to the region
 }
 }

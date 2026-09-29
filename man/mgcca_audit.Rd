@@ -2,6 +2,8 @@
 % Please edit documentation in R/mgcca_audit.R
 \name{mgcca_audit}
 \alias{mgcca_audit}
+\alias{print.mgcca_audit}
+\alias{summary.mgcca_audit}
 \title{Pre-fit availability and design audit}
 \usage{
 mgcca_audit(
@@ -12,6 +14,10 @@ mgcca_audit(
   design_lines = list(ess_min = 30, availability_min = 0.05, max_weight = 20),
   save_hdf5 = FALSE
 )
+
+\method{print}{mgcca_audit}(x, ...)
+
+\method{summary}{mgcca_audit}(object, ...)
 }
 \arguments{
 \item{data}{The design to audit. Either an \eqn{n \times J} logical (or 0/1)
@@ -54,6 +60,14 @@ and stratum labels as their dimnames, status codes as integers with the
 frozen vocabulary stored beside them as a legend, transfer routes as
 sequences of integer block indices. Rewriting is idempotent. The returned
 object is the same either way, and is \code{saveRDS}-able.}
+
+\item{x}{An object of class \code{"mgcca_audit"}, as returned by
+\code{mgcca_audit()}.}
+
+\item{object}{An object of class \code{"mgcca_audit"}, as returned by
+\code{mgcca_audit()}.}
+
+\item{...}{Ignored.}
 }
 \value{
 An object of class \code{"mgcca_audit"}, a list with
@@ -80,6 +94,10 @@ An object of class \code{"mgcca_audit"}, a list with
   plus \code{$table} (the availability table it worked from),
   \code{$individuals}, \code{$blocks}, \code{$L}, \code{$design_lines},
   \code{$source} and \code{$saved}.
+
+\code{print()} returns its argument invisibly and \code{summary()}
+  returns \code{object} invisibly; both are called for what they write to
+  the console.
 }
 \description{
 Audits the availability design of a multi-block study
@@ -171,6 +189,20 @@ checked".
 Among the pre-fit diagnostics we surveyed for multi-block methods with
 missing individuals, we found none reporting the transfer route and its
 bottleneck alongside the representation of the declared strata.
+
+\code{print()} gives the audit as a certificate: the source, the
+  sizes, the declared strata, weights and design lines, the support graph
+  with its bridges and articulation blocks, the tally of pair codes, and
+  every pair or stratum-block cell that raised an advisory, each shown
+  beside the value that raised it. It closes by restating that
+  \code{structural_checks} is \code{"not_evaluated"}: nothing printed is a
+  verdict on identification.
+
+\code{summary()} prints all of that and then the full tables: the
+  availability by block and by declared stratum, every pair with its
+  supports, route and bottleneck, and the representation table. A finite
+  entry there evidences positivity for that cell without proving it, and
+  the printed note says so.
 }
 \examples{
 # A design in which one block is only reachable through another: 40
