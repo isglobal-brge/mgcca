@@ -45,7 +45,7 @@
 .mgcca_av_default_lines <- list(ess_min = 30, availability_min = 0.05,
                                 max_weight = 20)
 
-.mgcca_av_store_group <- "availability_audit"
+.mgcca_av_group <- "availability_audit"
 
 
 ## ---- small graph primitives -------------------------------------------------
@@ -388,8 +388,7 @@
 ##     the dataset's colnames;
 ##   * block names, individual IDs and stratum labels -> character DIMNAMES of
 ##     the datasets they name, written and read by BigDataStatMeth's own
-##     dimnames machinery (hdf5_create_matrix / hdf5_matrix), which is the
-##     package's character support;
+##     dimnames machinery, which is the package's character support;
 ##   * status codes -> integers, with the frozen vocabulary stored beside them
 ##     as the `pair_codes` and `advisory_codes` legend datasets (the code is the
 ##     row index, the label is the row name), so an integer is never orphaned
@@ -421,39 +420,6 @@
         if (!nzchar(s)) return(0)
         sum(bits[strsplit(s, ";", fixed = TRUE)[[1L]]])
     }, numeric(1), USE.NAMES = FALSE)
-}
-
-## Close every open HDF5 handle, keeping the routine progress messages of
-## hdf5_close_all() quiet -- it reports on every call, including when there is
-## nothing to close -- but letting a genuine cleanup failure reach the user as
-## a single warning instead of disappearing into try(silent = TRUE).
-.mgcca_av_close_all <- function(what) {
-    tryCatch(suppressMessages(BigDataStatMeth::hdf5_close_all()),
-             error = function(e)
-                 warning("HDF5 cleanup after ", what, " failed: ",
-                         conditionMessage(e), call. = FALSE))
-    invisible(NULL)
-}
-
-## Write one double matrix, closing the handle the R6 reader leaves open.
-## The dataset is removed before it is written rather than overwritten in
-## place: an audit saved repeatedly into the same file rewrites all of its
-## tables on every save, and on Windows that sequence of in-place recreations
-## eventually leaves the file unopenable. Removing first makes every write a
-## clean creation, and it also releases any handle still pointing at the path.
-.mgcca_av_write <- function(filename, path, m) {
-    storage.mode(m) <- "double"
-    ## The dataset usually does not exist yet, and hdf5_remove() signals an
-    ## error in that case, so a failed removal is the normal first-write path
-    ## and stays silent; the write below is what reports a real problem.
-    suppressMessages(try(BigDataStatMeth::hdf5_remove(filename, path),
-                         silent = TRUE))
-    .mgcca_av_close_all(paste0("removing '", path, "'"))
-    hm <- BigDataStatMeth::hdf5_create_matrix(filename, path, data = m,
-                                              dtype = "double", overwrite = TRUE)
-    if (!is.null(hm) && is.function(hm$close)) try(hm$close(), silent = TRUE)
-    .mgcca_av_close_all(paste0("writing '", path, "'"))
-    invisible(path)
 }
 
 .mgcca_av_read <- function(filename, path) {
@@ -578,10 +544,18 @@
          pairs_by_stratum = pairs_by_stratum, graph = graph, design = design)
 }
 
-.mgcca_av_store <- function(x, filename, strata_index, w,
-                            group = .mgcca_av_store_group) {
-    on.exit(suppressMessages(try(BigDataStatMeth::hdf5_close_all(),
-                                 silent = TRUE)), add = TRUE)
+## The whole save is ONE call into C++ (mgcca_save_audit_rcpp), which opens the
+## file once, writes every table and the manifest on that one open handle, and
+## closes it once. Writing it table by table from R meant the datasets went
+## through BigDataStatMeth's R-level creator while the manifest went through
+## mgcca's own attribute writer: two statically linked HDF5 instances taking
+## turns on the same file, seventeen opens under two owners that cannot see
+## each other's handles. On Windows the second owner's open is refused and the
+## save failed part-way through. What is stored is unchanged -- the C++ writer
+## makes the same calls the R-level creator made, with the same arguments.
+
+.mgcca_av_save <- function(x, filename, strata_index, w,
+                           group = .mgcca_av_group) {
     enc <- .mgcca_av_encode(x)
     b <- x$blocks
     slev <- x$strata_levels
@@ -609,9 +583,12 @@
         adjacency = matrix(as.numeric(x$graph$adjacency), x$J, x$J,
                            dimnames = list(b, b)),
         kappa = kap)
-    all_tables <- c(fixed, enc)
-    for (nm in names(all_tables))
-        .mgcca_av_write(filename, paste0(group, "/", nm), all_tables[[nm]])
+    ## every table a double matrix: the stored datasets are doubles whatever
+    ## the R type of the index or count they were built from.
+    all_tables <- lapply(c(fixed, enc), function(m) {
+        storage.mode(m) <- "double"
+        m
+    })
 
     att <- list(
         mgcca_version = as.character(utils::packageVersion("mgcca")),
@@ -632,8 +609,7 @@
         ess_min = as.numeric(x$design_lines$ess_min),
         availability_min = as.numeric(x$design_lines$availability_min),
         max_weight = as.numeric(x$design_lines$max_weight))
-    mgcca_write_attrs_rcpp(filename, group, "", att)
-    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
+    mgcca_save_audit_rcpp(filename, group, all_tables, att)
     list(filename = filename, group = group, tables = names(all_tables))
 }
 
@@ -689,7 +665,7 @@
 #' identical(b$provenance$pairs, a$provenance$pairs)
 #' unlink(h5)
 #' @export
-mgcca_audit_load <- function(file, group = .mgcca_av_store_group,
+mgcca_audit_load <- function(file, group = .mgcca_av_group,
                              check_inputs = TRUE) {
     if (!is.character(file) || length(file) != 1L)
         stop("`file` must be the path to a single HDF5 file.", call. = FALSE)
@@ -1476,8 +1452,8 @@ mgcca_audit <- function(data, L, strata = NULL, weights = NULL,
     class(out) <- "mgcca_audit"
 
     if (isTRUE(save_hdf5))
-        out$saved <- .mgcca_av_store(out, src$hdf5$filename,
-                                     strata_index = as.integer(sf), w = w)
+        out$saved <- .mgcca_av_save(out, src$hdf5$filename,
+                                    strata_index = as.integer(sf), w = w)
     out
 }
 

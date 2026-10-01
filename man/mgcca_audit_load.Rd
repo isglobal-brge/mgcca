@@ -4,7 +4,7 @@
 \alias{mgcca_audit_load}
 \title{Read a stored availability audit back from HDF5}
 \usage{
-mgcca_audit_load(file, group = .mgcca_av_store_group, check_inputs = TRUE)
+mgcca_audit_load(file, group = .mgcca_av_group, check_inputs = TRUE)
 }
 \arguments{
 \item{file}{Path to the HDF5 file holding the audit.}

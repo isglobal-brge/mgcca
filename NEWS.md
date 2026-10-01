@@ -1,129 +1,80 @@
-# mgcca 0.99.4
-
-## Changed
-
-- Three exported functions are renamed, so that no exported name contains a dot
-  (dots are reserved for S3 dispatch) and no exported name is a bare, generic
-  verb that collides with another package: `impute()` becomes `mgccaImpute()`,
-  `cor.test.p()` becomes `corTestP()` and `matrix.chr2num()` becomes
-  `matrixChr2Num()`. Arguments, defaults and results are unchanged. The renames
-  follow the reviewer's naming guidance and predate the first release, so the
-  old names are removed outright rather than deprecated.
-- The example data set `cardiovascular` is now a simulated data set. It is
-  generated from aggregate summary statistics -- a joint correlation matrix,
-  per-variable marginal distributions and the sizes of the missing-value
-  pattern -- of the previous, real and de-identified data, which cannot be
-  redistributed. The generating script and the aggregate parameters it reads
-  are in `inst/scripts/`; row names are synthetic identifiers
-  (`id0001`--`id0646`). Table dimensions, the overlap between tables and the
-  correlation structure are preserved, so the examples, vignettes and tests
-  behave as before, but the numerical results differ. The clinical column
-  formerly named `cintura` is now `waist`.
-- Every `seed` argument now defaults to `NULL`, so seeding is the caller's
-  choice. `mgcca_select_lambda()` used to default to `seed = 1`; it now draws
-  its folds from the session's own random number stream and manipulates no RNG
-  state at all unless a seed is given. `mgcca_stability()` already defaulted to
-  `NULL`. A call that passes a seed is unchanged: it returns the same folds,
-  resamples and selected values as before. A default
-  `mgcca_select_lambda()` call, on the other hand, is no longer reproducible
-  across sessions on its own; pass `seed = <integer>` (or seed the session)
-  when the selection has to be repeatable.
-- The package title is now "Generalized Canonical Correlation Analysis with
-  Missing Individuals", in title case.
-- BigDataStatMeth moved from `Depends` to `Imports` (it stays in `LinkingTo`).
-  The package uses it through `BigDataStatMeth::` and through the four
-  functions it imports by name, so it no longer needs to be attached. Code
-  that relied on `library(mgcca)` also attaching BigDataStatMeth -- its
-  `crossprod()`, `eigen()`, `scale()` and the other `HDF5Matrix` generics --
-  now has to call `library(BigDataStatMeth)` itself.
-- The README documents `BiocManager::install("mgcca")` as the installation
-  route. It used to send users to `install_github()` for both mgcca and
-  BigDataStatMeth, which is neither testable by the build machines nor
-  accurate: BigDataStatMeth is on CRAN.
-- `curatedTCGAData`, `TCGAutils`, `TxDb.Hsapiens.UCSC.hg19.knownGene` and
-  `org.Hs.eg.db` are declared in `Suggests`, so a reader can install what the
-  vignette's TCGA code needs.
-- The vignettes now run a live multi-omics case study on `miniACC`, the TCGA
-  adrenocortical carcinoma subset that ships with `MultiAssayExperiment`, so
-  `getTables()`, `mgccaImpute()`, `matrixChr2Num()`, `mgcca_select_lambda()`,
-  `mgcca_results()`, `mgcca_permtest()`, `mgcca_associate()`, `predict()`,
-  `corTestP()`, `plotScores()`, `plotBiplot()`, `plotInds()` and `plotVars()`
-  are executed when the vignette is built instead of being shown only. The
-  full-scale TCGA walkthrough, which needs a download, is kept as an
-  explicitly-labelled unevaluated appendix, with its missing `GenomicRanges`
-  attach fixed. The penalty is now chosen by `mgcca_select_lambda()` before
-  each penalized fit rather than written in by hand. Chunks that computed
-  reported results while hidden -- the resampling-severity table and the
-  measured map angles -- are shown, and the invisible `MultiAssayExperiment`
-  availability guard is gone, so no section can silently vanish while the text
-  still discusses it. A paragraph in the first vignette situates `mgcca`
-  beside `RGCCA`, `mixOmics`, `MOFA2`, `omicade4`, `mogsa` and `made4`.
-- Long computations are interruptible. The compiled block loops -- import and
-  normalisation, the per-table crossproducts, SVD and scores, the row-block
-  assembly of the operator, and the reliability Gram and subspace kernels --
-  check for a user interrupt once per block, so Ctrl-C (or Escape) stops a fit
-  on a large table instead of being queued until it ends.
-- `plotVars()` reports variable names it cannot find through `message()`
-  rather than `cat()`/`print()`, so the report can be silenced.
-- The whole test suite now runs on the Bioconductor builders. The four files
-  covering the main fit, the diagnostics, the selectable outputs and the
-  per-individual sensitivity decomposition used to skip there, so those paths
-  were never exercised by a nightly build. Their fixtures are reduced (tens of
-  individuals and around ten features per block instead of hundreds, four
-  permutations instead of nine), and each expensive fit is now built once per
-  file and shared by the tests that read it, rather than refitted per test.
-  Every assertion checks the same property as before, on smaller data.
+# mgcca 0.99.5
 
 ## Fixed
 
-- `mgcca_select_lambda()` and `mgcca_stability()` no longer reseed the session
-  they are called from. A supplied seed applies to the fold or resampling draw
-  alone, inside a local RNG scope; the random number stream of the calling
-  session is left as it was found.
-- `plotInds()` no longer picks random colours. When `col.list` is omitted the
-  palette is fixed: the five named colours it has always started from,
-  extended by a deterministic sequence when there are more groups than that.
-  It used to append `sample(colors())`, so the colours changed from call to
-  call and the call consumed the session's random numbers. Its wrong-class
-  error also said `rgcca`, the class of another package, instead of `mgcca`.
-- The `.github` directory is excluded from the source tarball.
+- An audit is now written in a single HDF5 file open, from C++, instead of one
+  table at a time from R. The stored layout is unchanged and audits written by
+  earlier versions still load. This removes intermittent write failures seen on
+  Windows.
+- A write that refuses to overwrite an existing dataset no longer leaves the
+  HDF5 file open for the rest of the session (`mgcca_block_gram()`,
+  `mgcca_stability()` and the other reliability writers). The error now names
+  the dataset and the file.
+
+# mgcca 0.99.4
+
+Changes made in response to the Bioconductor review.
+
+## Changed
+
+- Renamed, without deprecation since this precedes the first release:
+  `impute()` to `mgccaImpute()`, `cor.test.p()` to `corTestP()`,
+  `matrix.chr2num()` to `matrixChr2Num()`. Arguments and results are unchanged.
+- `cardiovascular` is now a simulated data set, generated by the script in
+  `inst/scripts/` from aggregate statistics of the previous real and
+  non-redistributable data. Dimensions, table overlap and correlation structure
+  are preserved; numerical results differ. The clinical column `cintura` is now
+  `waist`.
+- `seed` arguments default to `NULL`, so seeding is the caller's choice.
+  `mgcca_select_lambda()` no longer defaults to `seed = 1`, so a default call is
+  not reproducible on its own; pass `seed =` when it must be.
+- BigDataStatMeth moved from `Depends` to `Imports` (it stays in `LinkingTo`).
+  Code that relied on `library(mgcca)` also attaching it must now call
+  `library(BigDataStatMeth)`.
+- The title is in title case; the README documents
+  `BiocManager::install("mgcca")`; `curatedTCGAData`, `TCGAutils`,
+  `TxDb.Hsapiens.UCSC.hg19.knownGene` and `org.Hs.eg.db` are declared in
+  `Suggests`.
+- The vignettes run a live `miniACC` case study, so the MultiAssayExperiment
+  helpers, the penalty selection, the permutation test and the plot helpers are
+  executed rather than only shown, and the penalty is chosen instead of written
+  in by hand. The full-scale TCGA walkthrough is kept as an unevaluated
+  appendix. A paragraph situates mgcca beside RGCCA, mixOmics, MOFA2, omicade4,
+  mogsa and made4.
+- Long computations are interruptible: the compiled block loops check for a
+  user interrupt once per block.
+- The whole test suite runs on the Bioconductor builders. The four files that
+  used to skip there have smaller fixtures and share each expensive fit; every
+  assertion checks the same property as before.
+
+## Fixed
+
+- `mgccaImpute()` passes its arguments to `impute::impute.knn()` by name. The
+  neighbour count is the new `k` (default 10), and `rowmax` and `colmax` now
+  mean what their names say, so a default call imputes with 10 neighbours
+  instead of 0.5 and its results change. Only `method = "knn"` is accepted;
+  `"hmisc"` used to be accepted and did nothing.
+- `genCoords()` honours `col.name`, matches the chromosome as well as the
+  position (see the new `seqname.col`), and requires a single range instead of
+  recycling silently.
+- `getSignif()` accepts a vector of tables in `df`, skips a table with no
+  significant variable, and points at `mgcca_results(..., outputs = ...)`.
+- `mgcca_select_lambda()` and `mgcca_stability()` no longer reseed the calling
+  session; a supplied seed applies inside a local scope.
+- `plotInds()` uses a fixed palette instead of `sample(colors())`, so the
+  colours are reproducible and no random numbers are consumed. Its wrong-class
+  error names `mgcca`.
+- `plotVars()` restores the graphical parameters and the layout it changes, and
+  reports unmatched variable names through `message()`.
 - The `print`, `summary` and `plot` methods for audit, sensitivity and
-  stability results are documented: they now appear on the page of the
-  function that produces the object, so `?summary.mgcca_stability` and its
-  six siblings resolve. Printing a `getTables()` result again uses the
-  package's own compact print: the method was registered for `listMAE` while
-  `getTables()` assigns `ListMAE`, and S3 dispatch is case-sensitive, so it
-  had never fired; it is now `print.ListMAE()`. `plotVars()` restores the
-  graphical parameters and the layout it changes, so a call no longer leaves
-  0.1-inch margins behind for every later plot in the session.
-- `mgccaImpute()` hands its arguments to `impute::impute.knn()` by name. The
-  number of neighbours is now the new `k` argument (default 10, the
-  `impute.knn` default), and `rowmax` and `colmax` mean what their names say:
-  they used to be passed by position, so `rowmax` arrived as the neighbour
-  count `k` and `colmax` as `rowmax`. A default call therefore imputes with 10
-  neighbours instead of 0.5, and its results change.
-- `mgccaImpute()` accepts only the method it implements, `method = "knn"` (now
-  also the default). `"hmisc"` used to be accepted and returned the object
-  unchanged, with nothing to tell a user that no imputation had happened.
-- `genCoords()` uses the `col.name` it is given, instead of always looking for
-  a column called `Genomic_Coordinate`. In the non-ranged assay it now also
-  matches the chromosome (taken from a `seqnames`/`chr`/`chromosome` column of
-  the `rowData()`, or from the new `seqname.col` argument), so a feature at the
-  same position on another chromosome is no longer kept, and it requires
-  `gen.coords` to hold exactly one range rather than silently recycling.
-- `getSignif()` accepts a vector of tables in `df`, as its help page says: it
-  used to stop with "the condition has length > 1". A table with no significant
-  variable is now simply skipped instead of breaking the result, and the
-  message raised when the fit carries no p-values points at
-  `mgcca_results(..., outputs = c("pval", ...))` rather than at an argument
-  that does not exist.
-- `mgcca_permtest()` deletes each permutation's HDF5 file as soon as its
-  eigenvalues have been read. The default `nperm = 99` used to leave 99 copies
-  of the padded tables in the session's temporary directory.
-- A failure to close the HDF5 file while saving an audit now raises a warning
-  carrying the underlying message. The cleanup used to run inside
-  `suppressMessages(try(..., silent = TRUE))`, which discarded the failure
-  along with the routine progress message.
+  stability results are documented, so `?summary.mgcca_stability` and its
+  siblings resolve. `print.ListMAE()` is registered under the class
+  `getTables()` assigns, so it now fires.
+- `mgcca_permtest()` deletes each permutation's HDF5 file once its eigenvalues
+  have been read; `nperm = 99` used to leave 99 copies behind.
+- A failure to close the HDF5 file while saving an audit raises a warning
+  carrying the underlying message.
+- The `.github` directory is excluded from the source tarball.
 
 # mgcca 0.99.3
 

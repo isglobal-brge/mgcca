@@ -7,6 +7,33 @@
 
 namespace mgcca {
 
+// ---------------------------------------------------------------------------
+// Fail-closed guard against an R longjmp that would strand our HDF5 handles.
+//
+// BigDataStatMeth::hdf5Dataset::createDataset() reports an already-existing
+// dataset with Rf_error(). Rf_error is an R longjmp, NOT a C++ exception: it
+// does not unwind the C++ stack, so no destructor runs and every hdf5File /
+// hdf5Dataset this frame owns keeps its HDF5 identifier open. A stranded file
+// identifier is invisible to BigDataStatMeth::hdf5_close_all() (that call only
+// releases the handles BigDataStatMeth itself still tracks), and on Windows it
+// keeps the file busy, so every later open of the same file is refused.
+//
+// So mgcca must never let that longjmp fire from under its own handles: we test
+// the condition first and raise a C++ exception instead. A C++ exception
+// unwinds normally, the unique_ptr destructors run, and the file identifier is
+// released before the error reaches R. Call this on every fail-closed write,
+// after the dataset object exists (its constructor has opened the file) and
+// before anything that could create the dataset.
+inline void check_fail_closed(BigDataStatMeth::hdf5Dataset* d,
+                              const std::string& fn, const std::string& grp,
+                              const std::string& ds, const char* who) {
+    if (d == nullptr || d->getFileptr() == nullptr) return;
+    if (BigDataStatMeth::exists_HDF5_element(d->getFileptr(), grp + "/" + ds))
+        throw std::runtime_error(std::string(who) + ": dataset '" + grp + "/" +
+                                 ds + "' already exists in '" + fn +
+                                 "'; refusing to overwrite it (fail-closed)");
+}
+
 // Read a full dataset into an Eigen matrix in R-view (column-major) order.
 inline Eigen::MatrixXd read_full(const std::string& fn, const std::string& grp,
                                  const std::string& ds) {
@@ -43,6 +70,9 @@ inline void write_full(const std::string& fn, const std::string& grp,
                        bool overwrite_ds = true) {
     std::unique_ptr<BigDataStatMeth::hdf5Dataset> d(
         new BigDataStatMeth::hdf5Dataset(fn, grp, ds, overwrite_ds));
+    // Fail-closed: raise a C++ exception ourselves rather than let
+    // createDataset() longjmp out from under `d` and strand its file handle.
+    if (!overwrite_ds) check_fail_closed(d.get(), fn, grp, ds, "write_full");
     d->setCompressionLevel(comp);
     d->createDataset((int)M.rows(), (int)M.cols(), "real");
     d->writeDataset(Rcpp::wrap(M));

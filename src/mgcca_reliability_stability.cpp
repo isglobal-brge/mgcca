@@ -124,10 +124,15 @@ Rcpp::List reliability_tcrossprod_hdf5(std::string file, std::string in_group, s
         if (dZ->getDatasetptr() == nullptr) throw std::runtime_error("reliability_tcrossprod_hdf5: cannot open " + in_group + "/" + in_ds);
         std::unique_ptr<BigDataStatMeth::hdf5Dataset> dZ2(
             new BigDataStatMeth::hdf5Dataset(file, in_group, in_ds, false)); dZ2->openDataset();
-        // overwrite=false => createDataset creates if absent, THROWS if the output already exists (fail-closed,
-        // r244 §2.8) -- unlike the estimator's tmp-overwriting pattern; the K3b certified path never overwrites.
+        // overwrite=false => createDataset creates if absent and REFUSES if the output already exists
+        // (fail-closed, r244 §2.8) -- unlike the estimator's tmp-overwriting pattern; the K3b certified
+        // path never overwrites. BigDataStatMeth signals that refusal with Rf_error, an R longjmp that
+        // skips every C++ destructor and would strand all three handles open here (dZ, dZ2, dG); so we
+        // test the condition ourselves and throw a C++ exception, which unwinds and closes them.
         std::unique_ptr<BigDataStatMeth::hdf5Dataset> dG(
             new BigDataStatMeth::hdf5Dataset(file, out_group, out_ds, false));
+        mgcca::check_fail_closed(dG.get(), file, out_group, out_ds,
+                                 "reliability_tcrossprod_hdf5");
         dG->setCompressionLevel(dZ->getCompressionLevel());
         int blk = BigDataStatMeth::getMaxBlockSize(dZ->nrows(), dZ->ncols(), dZ2->nrows(), dZ2->ncols(), 2, R_NilValue);
         BigDataStatMeth::tcrossprod(dZ.get(), dZ2.get(), dG.get(), true, blk, 0, false, true, threads);  // G = Z Z' (m x m)

@@ -61,6 +61,29 @@ mgcca_list_group_rcpp <- function(filename, group) {
     .Call(`_mgcca_mgcca_list_group_rcpp`, filename, group)
 }
 
+#' Save an availability audit into one HDF5 file in a single open
+#'
+#' Creates the audit group if it is missing, writes every table of
+#' \code{tables} as a double dataset with its dimnames, and writes
+#' \code{attrs} as attributes of the group. The file is opened once for the
+#' whole operation and closed once at the end, so no part of the save depends
+#' on reopening a file this process already holds.
+#'
+#' @param filename Path to the HDF5 file; it is created if it does not exist,
+#'   and never truncated, so the blocks the audit describes survive.
+#' @param group Group to write the audit into.
+#' @param tables Named list of double matrices with dimnames, one per audit
+#'   table. An existing dataset of the same name is replaced, whatever its
+#'   shape.
+#' @param attrs Named list of manifest values, written as attributes of
+#'   \code{group}.
+#' @return Invisibly \code{NULL}; called for the side effect of writing the
+#'   audit into the HDF5 file.
+#' @keywords internal
+mgcca_save_audit_rcpp <- function(filename, group, tables, attrs) {
+    invisible(.Call(`_mgcca_mgcca_save_audit_rcpp`, filename, group, tables, attrs))
+}
+
 #' MGCCA corsY / p-values / AVE stage over HDF5
 #' @return A list with the stage descriptor (\code{filename}), or \code{NULL} on
 #'   error. The results (\code{corsY}, \code{pval}, \code{AVE}) are written into

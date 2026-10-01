@@ -65,6 +65,19 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mgcca_save_audit_rcpp
+void mgcca_save_audit_rcpp(std::string filename, std::string group, Rcpp::List tables, Rcpp::List attrs);
+RcppExport SEXP _mgcca_mgcca_save_audit_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP tablesSEXP, SEXP attrsSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type tables(tablesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type attrs(attrsSEXP);
+    mgcca_save_audit_rcpp(filename, group, tables, attrs);
+    return R_NilValue;
+END_RCPP
+}
 // mgcca_cor_ave_rcpp
 Rcpp::List mgcca_cor_ave_rcpp(std::string filename, std::string tmp_group, std::vector<std::string> datasets, int nfac, std::string final_group);
 RcppExport SEXP _mgcca_mgcca_cor_ave_rcpp(SEXP filenameSEXP, SEXP tmp_groupSEXP, SEXP datasetsSEXP, SEXP nfacSEXP, SEXP final_groupSEXP) {
@@ -392,6 +405,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcca_mgcca_write_attrs_rcpp", (DL_FUNC) &_mgcca_mgcca_write_attrs_rcpp, 4},
     {"_mgcca_mgcca_read_attrs_rcpp", (DL_FUNC) &_mgcca_mgcca_read_attrs_rcpp, 3},
     {"_mgcca_mgcca_list_group_rcpp", (DL_FUNC) &_mgcca_mgcca_list_group_rcpp, 2},
+    {"_mgcca_mgcca_save_audit_rcpp", (DL_FUNC) &_mgcca_mgcca_save_audit_rcpp, 4},
     {"_mgcca_mgcca_cor_ave_rcpp", (DL_FUNC) &_mgcca_mgcca_cor_ave_rcpp, 5},
     {"_mgcca_mgcca_eigen_rcpp", (DL_FUNC) &_mgcca_mgcca_eigen_rcpp, 6},
     {"_mgcca_mgcca_getK_rcpp", (DL_FUNC) &_mgcca_mgcca_getK_rcpp, 4},

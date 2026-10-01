@@ -828,12 +828,66 @@ test_that("nothing in the module is serialised", {
         expect_false(any(grepl(bad, src, fixed = TRUE)))
 })
 
+# The package sources, when they are reachable: the directory holding R/ and
+# src/. That is the package root in a source checkout, and 00_pkg_src/<pkg>
+# under R CMD check, which unpacks the tarball there.
+audit_pkg_source_dir <- function() {
+    cand <- c(testthat::test_path("..", ".."),
+              testthat::test_path("..", "..", "00_pkg_src", "mgcca"))
+    for (d in cand)
+        if (dir.exists(file.path(d, "R")) && dir.exists(file.path(d, "src")))
+            return(d)
+    NA_character_
+}
+
+# Source lines with the comments taken out, so a package NAMED in a comment is
+# not mistaken for a package CALLED in the code. Trailing `#` / `//` is enough:
+# no source file in R/ or src/ puts a block comment around the word.
+audit_code_lines <- function(path) {
+    x <- readLines(path, warn = FALSE)
+    x <- if (grepl("\\.R$", path)) sub("#.*$", "", x) else sub("//.*$", "", x)
+    x[nzchar(trimws(x))]
+}
+
 test_that("the module reads and writes HDF5 through BigDataStatMeth, never rhdf5", {
+    # (a) the R side: it READS through BigDataStatMeth's own reader and WRITES
+    # by handing the whole save to this package's compiled writer -- which is
+    # the only writer, so no table can take another route.
     src <- audit_module_code()
     expect_false(any(grepl("rhdf5", src, fixed = TRUE)))
     expect_true(any(grepl("BigDataStatMeth::hdf5_matrix", src, fixed = TRUE)))
-    expect_true(any(grepl("BigDataStatMeth::hdf5_create_matrix", src,
-                          fixed = TRUE)))
+    expect_true(any(grepl("mgcca_save_audit_rcpp(", src, fixed = TRUE)))
+    expect_true(is.function(get("mgcca_save_audit_rcpp",
+                                envir = asNamespace("mgcca"))))
+    # nothing in the module writes HDF5 from R any more
+    expect_false(any(grepl("bdCreate_hdf5_matrix", src, fixed = TRUE)))
+
+    # (b) the C++ side, when the sources ship beside the tests: the writer goes
+    # through BigDataStatMeth's file, group and dataset classes for every part
+    # of what it stores -- the datasets, their values and their dimnames -- and
+    # rhdf5 is not called, included or depended on anywhere in R/ or src/.
+    dir <- audit_pkg_source_dir()
+    skip_if(is.na(dir), "package sources not reachable from the test directory")
+
+    writer <- file.path(dir, "src", "mgcca_audit_save.cpp")
+    expect_true(file.exists(writer))
+    code <- audit_code_lines(writer)
+    for (needed in c("BigDataStatMeth::hdf5File", "BigDataStatMeth::hdf5Group",
+                     "BigDataStatMeth::hdf5Dataset", "createDataset(",
+                     "writeDataset(", "writeDimnames("))
+        expect_true(any(grepl(needed, code, fixed = TRUE)),
+                    info = paste("writer does not use", needed))
+    # one open, one close: the file object is built once, outside the loop
+    expect_equal(sum(grepl("new BigDataStatMeth::hdf5File", code,
+                           fixed = TRUE)), 1L)
+
+    files <- c(list.files(file.path(dir, "R"), "\\.R$", full.names = TRUE),
+               list.files(file.path(dir, "src"), "\\.(cpp|h|hpp)$",
+                          full.names = TRUE))
+    expect_gt(length(files), 10L)
+    offenders <- Filter(function(f) any(grepl("rhdf5", audit_code_lines(f),
+                                              fixed = TRUE)), files)
+    expect_equal(basename(offenders), character(0))
 })
 
 

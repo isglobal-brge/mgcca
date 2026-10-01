@@ -1,8 +1,8 @@
 Package: mgcca
 Type: Package
 Title: Generalized Canonical Correlation Analysis with Missing Individuals
-Version: 0.99.4
-Date: 2026-09-29
+Version: 0.99.5
+Date: 2026-10-01
 Authors@R:
   c(  person( given = "Dolors",
               family = "Pelegri-Siso",
