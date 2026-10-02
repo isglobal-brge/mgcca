@@ -246,17 +246,19 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
         qk <- reliability_query(fit$V, fit$mu, zs, ctx$L)
 
         # --- per-block sensitivity through the sealed kernel ---
-        # It reads each block's PRESENT-ONLY Gram, which is why the Gram is kept
-        # rather than only its embedded copy: the kernel indexes participants in
-        # the block's own order and maps them to fit rows through `mids_to_fit`.
+        # It works on each block's PRESENT-ONLY Gram, which is why the Gram is
+        # kept rather than only its embedded copy: the kernel indexes
+        # participants in the block's own order and maps them to fit rows
+        # through `mids_to_fit`. The Grams were read once, before this loop:
+        # every query asks about the same ones.
         dirs[[k]] <- qk$w
         bb <- vector("list", length(ctx$datasets))
         ii <- vector("list", length(ctx$datasets))
         for (j in seq_along(ctx$datasets)) {
             bi <- reliability_block_inputs(fit$Rlist[[j]], D, fit$V, ctx$L)
             m2f <- match(blocks$block_ids[[j]], ids) - 1L
-            kk <- reliability_sensitivity_gram(
-                blocks$gram_file, blocks$gram_group, ctx$datasets[j],
+            kk <- reliability_sensitivity_gram_matrix(
+                blocks$grams[[j]],
                 as.integer(m2f), bi$Rr, bi$Sm, qk$C, lam[j],
                 blocks$present[[j]], as.integer(prm), as.integer(grpc))
             bb[[j]] <- data.frame(query = colnames(Q)[k], block = ctx$datasets[j],
@@ -414,15 +416,12 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
 # the user cannot escape; one argument prevents a whole class of them.
 .mgcca_rel_backend <- function(backend, ctx, max_cells = 5e7) {
     if (backend != "auto") return(backend)
-    cells <- 0
-    for (ds in ctx$datasets) {
-        h <- try(BigDataStatMeth::hdf5_matrix(ctx$file,
-                     paste0(ctx$input_group, "/", ds)), silent = TRUE)
-        if (!inherits(h, "try-error")) {
-            cells <- max(cells, prod(dim(h)))
-            try(BigDataStatMeth::hdf5_close_all(), silent = TRUE)
-        }
-    }
+    d <- mgcca_read_dimensions_rcpp(ctx$file, ctx$input_group, ctx$datasets)
+    # A block the file does not carry is reported as 0 x 0 and so counts for
+    # nothing here, which is what the size question deserves: whether the block
+    # is really missing is settled by .mgcca_rel_block_grams, with a message
+    # that names it.
+    cells <- max(0, d$nrow * d$ncol)
     if (cells > max_cells) "hdf5" else "memory"
 }
 
@@ -433,49 +432,64 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
 # this layer exists to prevent, and would do it silently.
 .mgcca_rel_block_grams <- function(ctx, backend, block_size, threads) {
     n <- length(ctx$ids)
-    Glist <- vector("list", length(ctx$datasets))
-    present <- vector("list", length(ctx$datasets))
-    block_ids <- vector("list", length(ctx$datasets))
-    # The sealed kernel reads each block's PRESENT-ONLY Gram from HDF5, so it is
-    # written there on both backends. It is n_pr x n_pr in PARTICIPANTS -- small
-    # whatever the block's width -- so this costs nothing even for the memory path.
-    gram_file <- ctx$file; gram_group <- "RELIABILITY_TMP/G" 
-    for (j in seq_along(ctx$datasets)) {
-        ds <- ctx$datasets[j]
-        path <- paste0(ctx$input_group, "/", ds)
-        h <- BigDataStatMeth::hdf5_matrix(ctx$file, path)
-        bids <- rownames(h)
-        if (is.null(bids))
-            stop("block '", ds, "' has no participant row names, so its individuals ",
-                 "cannot be identified", call. = FALSE)
-        unknown <- setdiff(bids, ctx$ids)
-        if (length(unknown))
-            stop("block '", ds, "' contains ", length(unknown),
-                 " participant(s) absent from the fit", call. = FALSE)
-        Gsub <- if (identical(backend, "memory")) {
-            Xj <- as.matrix(h)
-            g <- tcrossprod(scale(Xj, center = TRUE, scale = TRUE))
+    J <- length(ctx$datasets)
+    # The present-only Grams are kept AND written to HDF5 on both backends: the
+    # kernel works on them, and they stay in the file where the layer has always
+    # put them. They are n_pr x n_pr in PARTICIPANTS -- small whatever the
+    # block's width -- so this costs nothing even for the memory path.
+    gram_file <- ctx$file; gram_group <- "RELIABILITY_TMP/G"
+    block_ids <- vector("list", J)
+    if (identical(backend, "memory")) {
+        # ONE open for all of the blocks, values and participant names
+        # together, so the Gram arithmetic is all that is left to do per block.
+        blk <- mgcca_read_blocks_rcpp(ctx$file, ctx$input_group, ctx$datasets)
+        grams <- vector("list", J)
+        for (j in seq_len(J)) {
+            bids <- .mgcca_rel_block_ids(blk$rownames[[j]], ctx$datasets[j], ctx$ids)
+            g <- tcrossprod(scale(blk$values[[j]], center = TRUE, scale = TRUE))
             dimnames(g) <- list(bids, bids)
-            BigDataStatMeth::hdf5_close_all()
-            BigDataStatMeth::hdf5_create_matrix(ctx$file,
-                paste0(gram_group, "/", ds), data = g, overwrite = TRUE)
-            g
-        } else {
-            BigDataStatMeth::hdf5_close_all()
-            r <- reliability_gram_block(ctx$file, ctx$input_group, ds,
-                                        gram_group, as.integer(block_size), threads)
-            as.matrix(BigDataStatMeth::hdf5_matrix(ctx$file, r$path))
+            block_ids[[j]] <- bids
+            grams[[j]] <- g
         }
-        BigDataStatMeth::hdf5_close_all()
-        block_ids[[j]] <- bids
+        # The Grams carry no manifest of their own, and the writer reads the
+        # names of what it is given, so the empty attribute list is a NAMED one.
+        mgcca_save_audit_rcpp(ctx$file, gram_group,
+                              stats::setNames(grams, ctx$datasets),
+                              stats::setNames(list(), character(0)))
+    } else {
+        # The names first, so a block that cannot be identified is refused
+        # before anything is computed from it.
+        rn <- mgcca_read_rownames_rcpp(ctx$file, ctx$input_group, ctx$datasets)
+        for (j in seq_len(J))
+            block_ids[[j]] <- .mgcca_rel_block_ids(rn[[j]], ctx$datasets[j], ctx$ids)
+        for (j in seq_len(J))
+            reliability_gram_block(ctx$file, ctx$input_group, ctx$datasets[j],
+                                   gram_group, as.integer(block_size), threads)
+        grams <- mgcca_read_blocks_rcpp(ctx$file, gram_group, ctx$datasets)$values
+    }
+    Glist <- vector("list", J)
+    present <- vector("list", J)
+    for (j in seq_len(J)) {
         Gfull <- matrix(0, n, n, dimnames = list(ctx$ids, ctx$ids))
-        i <- match(bids, ctx$ids)
-        Gfull[i, i] <- Gsub
+        i <- match(block_ids[[j]], ctx$ids)
+        Gfull[i, i] <- grams[[j]]
         Glist[[j]] <- Gfull
-        present[[j]] <- ctx$ids %in% bids
+        present[[j]] <- ctx$ids %in% block_ids[[j]]
     }
     list(Glist = Glist, present = present, block_ids = block_ids,
-         gram_file = gram_file, gram_group = gram_group)
+         grams = grams, gram_file = gram_file, gram_group = gram_group)
+}
+
+# The stored block's own individuals, checked against the fit's universe.
+.mgcca_rel_block_ids <- function(bids, ds, ids) {
+    if (!length(bids))
+        stop("block '", ds, "' has no participant row names, so its individuals ",
+             "cannot be identified", call. = FALSE)
+    unknown <- setdiff(bids, ids)
+    if (length(unknown))
+        stop("block '", ds, "' contains ", length(unknown),
+             " participant(s) absent from the fit", call. = FALSE)
+    bids
 }
 
 # ---- query, group and covariate contracts ----------------------------------

@@ -290,23 +290,18 @@
          call. = FALSE)
 }
 
-## HDF5-backed blocks: the dimnames dataset only. rownames() on the R6 reader
-## goes through BigDataStatMeth's own dimnames reader, so not one value of any
-## block is read.
+## HDF5-backed blocks: the dimnames dataset only. Every block's individual IDs
+## come back from one open of the file, through BigDataStatMeth's own dimnames
+## reader, so not one value of any block is read.
 .mgcca_av_ids_hdf5 <- function(filename, group, datasets) {
-    on.exit(suppressMessages(try(BigDataStatMeth::hdf5_close_all(),
-                                 silent = TRUE)), add = TRUE)
+    rn <- mgcca_read_rownames_rcpp(filename, group, datasets)
     out <- vector("list", length(datasets))
     names(out) <- datasets
     for (k in seq_along(datasets)) {
-        hm <- BigDataStatMeth::hdf5_matrix(filename,
-                                           paste0(group, "/", datasets[k]))
-        rn <- tryCatch(rownames(hm), error = function(e) NULL)
-        if (!is.null(hm) && is.function(hm$close)) try(hm$close(), silent = TRUE)
-        if (is.null(rn) || !length(rn))
+        if (!length(rn[[k]]))
             stop("dataset '", datasets[k], "' in ", filename,
                  " has no rownames (individual IDs required)", call. = FALSE)
-        out[[k]] <- as.character(rn)
+        out[[k]] <- as.character(rn[[k]])
     }
     out
 }
@@ -339,7 +334,6 @@
         ## the datasets and returns, writing nothing.
         d <- mgcca_import_hdf5(desc$filename, filename = desc$filename,
                                group = desc$group, datasets = desc$datasets)
-        suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
         return(list(availability = .mgcca_av_matrix(
                         .mgcca_av_assemble(.mgcca_av_ids_hdf5(
                             d$filename, d$group, d$datasets))),
@@ -420,21 +414,6 @@
         if (!nzchar(s)) return(0)
         sum(bits[strsplit(s, ";", fixed = TRUE)[[1L]]])
     }, numeric(1), USE.NAMES = FALSE)
-}
-
-.mgcca_av_read <- function(filename, path) {
-    hm <- BigDataStatMeth::hdf5_matrix(filename, path)
-    m <- as.matrix(hm)
-    dn <- try(dimnames(hm), silent = TRUE)
-    if (is.function(hm$close)) try(hm$close(), silent = TRUE)
-    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
-    if (!inherits(dn, "try-error") && length(dn) == 2L) dimnames(m) <- dn
-    ## The audit never produces a NaN -- every stored number is a count, a
-    ## proportion, an ESS or a missing value -- so any NaN that comes back is a
-    ## missing value that lost its payload on the way through, and treating it
-    ## as one keeps NA_real_ round-tripping as NA_real_ rather than NaN.
-    m[is.nan(m)] <- NA_real_
-    m
 }
 
 ## The encoded form of the derived tables: what goes in the file, and what the
@@ -671,26 +650,36 @@ mgcca_audit_load <- function(file, group = .mgcca_av_group,
         stop("`file` must be the path to a single HDF5 file.", call. = FALSE)
     if (!file.exists(file))
         stop("the HDF5 file does not exist: ", file, call. = FALSE)
-    on.exit(suppressMessages(try(BigDataStatMeth::hdf5_close_all(),
-                                 silent = TRUE)), add = TRUE)
 
-    att <- tryCatch(mgcca_read_attrs_rcpp(file, group, ""),
+    ds <- .mgcca_av_expected_tables()
+    ## The whole certificate comes back from ONE open: the manifest and every
+    ## table, on one handle, closed once. Read piece by piece from R it was the
+    ## save's mirror image -- the manifest through mgcca's attribute reader and
+    ## each table through BigDataStatMeth's R-level matrix reader, seventeen
+    ## opens of one file under two HDF5 instances taking turns.
+    got <- tryCatch(mgcca_read_audit_rcpp(file, group, ds),
                     error = function(e) NULL)
-    suppressMessages(try(BigDataStatMeth::hdf5_close_all(), silent = TRUE))
+    att <- got$attrs
     if (is.null(att) || !identical(as.character(att$analysis), "mgcca_audit"))
         stop("no mgcca audit is stored in '", group, "' of ", file,
              ". Write one with mgcca_audit(..., save_hdf5 = TRUE).",
              call. = FALSE)
 
-    ds <- .mgcca_av_expected_tables()
-    missing_ds <- setdiff(ds, as.character(att$tables))
+    missing_ds <- union(setdiff(ds, as.character(att$tables)),
+                        ds[vapply(got$tables, is.null, logical(1))])
     if (length(missing_ds))
         stop("the audit stored in '", group, "' of ", file,
              " is incomplete: ", paste(missing_ds, collapse = ", "),
              " missing. Write it again with ",
              "mgcca_audit(..., save_hdf5 = TRUE).", call. = FALSE)
-    stored <- lapply(stats::setNames(ds, ds), function(nm)
-        .mgcca_av_read(file, paste0(group, "/", nm)))
+    ## The audit never produces a NaN -- every stored number is a count, a
+    ## proportion, an ESS or a missing value -- so any NaN that comes back is a
+    ## missing value that lost its payload on the way through, and treating it
+    ## as one keeps NA_real_ round-tripping as NA_real_ rather than NaN.
+    stored <- lapply(got$tables, function(m) {
+        m[is.nan(m)] <- NA_real_
+        m
+    })
 
     out <- .mgcca_av_decode(stored, att)
     out$hdf5 <- list(filename = file, group = as.character(att$hdf5_group),

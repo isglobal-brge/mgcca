@@ -241,21 +241,20 @@
 .mgcca_rel_store <- function(res, file, name, tables) {
     grp <- paste0("RELIABILITY/", name)
     existing <- tryCatch(mgcca_list_group_rcpp(file, grp), error = function(e) character(0))
-    BigDataStatMeth::hdf5_close_all()
     if (length(existing))
         stop("'", grp, "' already exists in ", file,
              ". Choose another `store_name`, or remove it deliberately: overwriting ",
              "would leave a manifest that no longer describes the data beside it.",
              call. = FALSE)
+    num <- list()
     for (nm in names(tables)) {
         d <- tables[[nm]]
         if (is.null(d) || !nrow(d)) next
-        num <- vapply(d, is.numeric, logical(1))
-        if (any(num))
-            BigDataStatMeth::hdf5_create_matrix(
-                file, paste0(grp, "/", nm),
-                data = as.matrix(d[, num, drop = FALSE]), overwrite = TRUE)
-        BigDataStatMeth::hdf5_close_all()
+        keep <- vapply(d, is.numeric, logical(1))
+        if (!any(keep)) next
+        m <- as.matrix(d[, keep, drop = FALSE])
+        storage.mode(m) <- "double"
+        num[[nm]] <- m
     }
     man <- list(mgcca_version = as.character(utils::packageVersion("mgcca")),
                 mgcca_date = format(Sys.time(), "%Y-%m-%d %H:%M:%S"),
@@ -265,8 +264,13 @@
                 lambda = as.numeric(res$settings$lambda),
                 lambda_source = as.character(res$settings$lambda_source),
                 tables = names(tables))
-    mgcca_write_attrs_rcpp(file, grp, "", man)
-    BigDataStatMeth::hdf5_close_all()
+    # The whole store is one call into C++: the tables and the manifest reach
+    # the file through one open, under one owner. Written table by table from R
+    # they went through BigDataStatMeth's R-level creator while the manifest
+    # went through mgcca's attribute writer -- two statically linked HDF5
+    # instances taking turns on the same file. What is stored does not change:
+    # the C++ writer makes the same calls, with the same arguments.
+    mgcca_save_audit_rcpp(file, grp, num, man)
     list(group = grp, tables = names(tables))
 }
 

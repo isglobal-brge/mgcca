@@ -850,16 +850,20 @@ audit_code_lines <- function(path) {
 }
 
 test_that("the module reads and writes HDF5 through BigDataStatMeth, never rhdf5", {
-    # (a) the R side: it READS through BigDataStatMeth's own reader and WRITES
-    # by handing the whole save to this package's compiled writer -- which is
-    # the only writer, so no table can take another route.
+    # (a) the R side: it hands every read and every write to this package's own
+    # compiled entry points -- the only reader and the only writer, so no table
+    # can take another route.
     src <- audit_module_code()
     expect_false(any(grepl("rhdf5", src, fixed = TRUE)))
-    expect_true(any(grepl("BigDataStatMeth::hdf5_matrix", src, fixed = TRUE)))
+    expect_false(any(grepl("hdf5r", src, fixed = TRUE)))
+    expect_true(any(grepl("mgcca_read_audit_rcpp(", src, fixed = TRUE)))
+    expect_true(any(grepl("mgcca_read_rownames_rcpp(", src, fixed = TRUE)))
     expect_true(any(grepl("mgcca_save_audit_rcpp(", src, fixed = TRUE)))
-    expect_true(is.function(get("mgcca_save_audit_rcpp",
-                                envir = asNamespace("mgcca"))))
-    # nothing in the module writes HDF5 from R any more
+    for (entry in c("mgcca_read_audit_rcpp", "mgcca_read_rownames_rcpp",
+                    "mgcca_save_audit_rcpp"))
+        expect_true(is.function(get(entry, envir = asNamespace("mgcca"))))
+    # nothing in the module reads or writes HDF5 from R any more
+    expect_false(any(grepl("BigDataStatMeth::", src, fixed = TRUE)))
     expect_false(any(grepl("bdCreate_hdf5_matrix", src, fixed = TRUE)))
 
     # (b) the C++ side, when the sources ship beside the tests: the writer goes
@@ -879,6 +883,15 @@ test_that("the module reads and writes HDF5 through BigDataStatMeth, never rhdf5
                     info = paste("writer does not use", needed))
     # one open, one close: the file object is built once, outside the loop
     expect_equal(sum(grepl("new BigDataStatMeth::hdf5File", code,
+                           fixed = TRUE)), 1L)
+
+    # the reader is held to the same two rules: BigDataStatMeth's classes, and
+    # one file object for the manifest and all sixteen tables together.
+    reader <- file.path(dir, "src", "mgcca_audit_load.cpp")
+    expect_true(file.exists(reader))
+    rcode <- audit_code_lines(reader)
+    expect_true(any(grepl("BigDataStatMeth::hdf5File", rcode, fixed = TRUE)))
+    expect_equal(sum(grepl("new BigDataStatMeth::hdf5File", rcode,
                            fixed = TRUE)), 1L)
 
     files <- c(list.files(file.path(dir, "R"), "\\.R$", full.names = TRUE),

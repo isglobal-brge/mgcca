@@ -5,7 +5,14 @@
 # overlapping individuals, which is the setting the estimator exists for and the
 # one where the availability weighting matters.
 
+# Built once per set of arguments: the fit is small but every test below needs
+# the same one, and refitting it would only add wall time. Same shape as
+# perind_fixture() in test-sensitivity-individual.R.
+.rel_api_cache <- new.env(parent = emptyenv())
+
 rel_api_fixture <- function(n = 40L, L = 2L, seed = 3L) {
+    key <- paste(n, L, seed, sep = "-")
+    if (!is.null(.rel_api_cache[[key]])) return(.rel_api_cache[[key]])
     set.seed(seed)
     ids <- sprintf("s%02d", seq_len(n))
     Z <- matrix(rnorm(n * L), n, L)
@@ -18,8 +25,10 @@ rel_api_fixture <- function(n = 40L, L = 2L, seed = 3L) {
     fit <- mgcca(list(a = mk(8L, seq_len(n)), b = mk(6L, 3:n)),
                  filename = h5, nfac = L, method = "penalized", lambda = c(1, 1))
     grp <- factor(rep(c("x", "y"), length.out = n)); names(grp) <- ids
-    list(fit = fit, ids = ids, h5 = h5, Z = Z, L = L, n = n, group = grp,
-         query = setNames(as.numeric(Z[, 1]) + rnorm(n, 0, 0.4), ids))
+    f <- list(fit = fit, ids = ids, h5 = h5, Z = Z, L = L, n = n, group = grp,
+              query = setNames(as.numeric(Z[, 1]) + rnorm(n, 0, 0.4), ids))
+    .rel_api_cache[[key]] <- f
+    f
 }
 
 test_that("a fit that cannot locate its input blocks is refused, with the reason", {

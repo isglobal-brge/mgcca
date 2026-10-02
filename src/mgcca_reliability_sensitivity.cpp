@@ -9,6 +9,30 @@
 #include "reliabilitySensitivity.h"
 using namespace Rcpp;
 
+namespace {
+
+Eigen::MatrixXd toEigen(const Rcpp::NumericMatrix& M) {
+    Eigen::MatrixXd E(M.nrow(), M.ncol());
+    std::copy(M.begin(), M.end(), E.data());
+    return E;
+}
+
+Rcpp::List wrapResult(const mgcca::reliability::SensResult& R) {
+    const int npr = (int)R.n_pr, nf = (int)R.n_fit;
+    Rcpp::NumericMatrix accB(npr, nf), accX(npr, nf);
+    std::copy(R.accB.data(), R.accB.data() + (std::size_t)npr*nf, accB.begin());
+    std::copy(R.accX.data(), R.accX.data() + (std::size_t)npr*nf, accX.begin());
+    return Rcpp::List::create(
+        Rcpp::Named("trbH") = R.trbH, Rcpp::Named("trtH") = R.trtH,
+        Rcpp::Named("normD2") = R.normD2, Rcpp::Named("sym_err") = R.sym_err,
+        Rcpp::Named("e_qmm") = R.e_qmm, Rcpp::Named("accB") = accB, Rcpp::Named("accX") = accX,
+        Rcpp::Named("n_fit") = (double)R.n_fit, Rcpp::Named("n_pr") = (double)R.n_pr,
+        Rcpp::Named("L") = (double)R.L, Rcpp::Named("n_meth") = (double)R.n_meth,
+        Rcpp::Named("n_grp") = (double)R.n_grp);
+}
+
+}  // namespace
+
 //' K2: methylation sensitivity accumulators from the sealed K1 Gram (participant-space)
 //' @return A list with the sensitivity accumulators \code{trtH} and \code{accX},
 //'   the symmetry residual \code{sym_err} and the sizes \code{n_pr},
@@ -24,32 +48,55 @@ Rcpp::List reliability_sensitivity_gram(std::string file, std::string group, std
                                         double neg_tol = 1e-8) {
     try {
         H5::Exception::dontPrint();
-        auto toE = [](const Rcpp::NumericMatrix& M) {
-            Eigen::MatrixXd E(M.nrow(), M.ncol());
-            std::copy(M.begin(), M.end(), E.data()); return E; };
         std::vector<long> m2f(mids_to_fit.size()); for (R_xlen_t i=0;i<mids_to_fit.size();++i) m2f[i]=mids_to_fit[i];
         std::vector<char> pres(present.size());   for (R_xlen_t i=0;i<present.size();++i)     pres[i]=(present[i]!=0);
         std::vector<long> prmv(prm.size());        for (R_xlen_t i=0;i<prm.size();++i)          prmv[i]=prm[i];
         std::vector<int>  grpv(grp.size());        for (R_xlen_t i=0;i<grp.size();++i)          grpv[i]=grp[i];
 
-        mgcca::reliability::SensResult R = mgcca::reliability::sensitivity_from_gram(
-            file, group, dataset, m2f, toE(Rr), toE(Sm), toE(C), alpha, pres, prmv, grpv, neg_tol);
-
-        const int npr = (int)R.n_pr, nf = (int)R.n_fit;
-        Rcpp::NumericMatrix accB(npr, nf), accX(npr, nf);
-        std::copy(R.accB.data(), R.accB.data() + (std::size_t)npr*nf, accB.begin());
-        std::copy(R.accX.data(), R.accX.data() + (std::size_t)npr*nf, accX.begin());
-        return Rcpp::List::create(
-            Rcpp::Named("trbH") = R.trbH, Rcpp::Named("trtH") = R.trtH,
-            Rcpp::Named("normD2") = R.normD2, Rcpp::Named("sym_err") = R.sym_err,
-            Rcpp::Named("e_qmm") = R.e_qmm, Rcpp::Named("accB") = accB, Rcpp::Named("accX") = accX,
-            Rcpp::Named("n_fit") = (double)R.n_fit, Rcpp::Named("n_pr") = (double)R.n_pr,
-            Rcpp::Named("L") = (double)R.L, Rcpp::Named("n_meth") = (double)R.n_meth,
-            Rcpp::Named("n_grp") = (double)R.n_grp);
+        return wrapResult(mgcca::reliability::sensitivity_from_gram(
+            file, group, dataset, m2f, toEigen(Rr), toEigen(Sm), toEigen(C), alpha,
+            pres, prmv, grpv, neg_tol));
     } catch (H5::Exception& e) {
         Rf_error("reliability_sensitivity_gram HDF5 error: %s", e.getDetailMsg().c_str());
     } catch (std::exception& e) {
         Rf_error("reliability_sensitivity_gram error: %s", e.what());
+    }
+    return R_NilValue;
+}
+
+//' K2: the same accumulators with the Gram supplied as a matrix
+//'
+//' The sensitivity kernel reads one block's Gram once per query, so a run of Q
+//' queries over J blocks read the same Q x J datasets out of the same file,
+//' opening and closing it every time. The Grams are participant by participant
+//' -- small whatever the width of the block behind them -- so the caller reads
+//' them once and passes them here. The arithmetic is the same body as
+//' \code{reliability_sensitivity_gram}: only where the Gram came from differs.
+//'
+//' @param G The present-only participant Gram of the block.
+//' @return A list with the sensitivity accumulators \code{trtH} and \code{accX},
+//'   the symmetry residual \code{sym_err} and the sizes \code{n_pr},
+//'   \code{n_meth}, \code{n_grp}.
+//' @keywords internal
+// [[Rcpp::export]]
+Rcpp::List reliability_sensitivity_gram_matrix(Rcpp::NumericMatrix G,
+                                        Rcpp::IntegerVector mids_to_fit,
+                                        Rcpp::NumericMatrix Rr, Rcpp::NumericMatrix Sm,
+                                        Rcpp::NumericMatrix C, double alpha,
+                                        Rcpp::LogicalVector present,
+                                        Rcpp::IntegerVector prm, Rcpp::IntegerVector grp,
+                                        double neg_tol = 1e-8) {
+    try {
+        std::vector<long> m2f(mids_to_fit.size()); for (R_xlen_t i=0;i<mids_to_fit.size();++i) m2f[i]=mids_to_fit[i];
+        std::vector<char> pres(present.size());   for (R_xlen_t i=0;i<present.size();++i)     pres[i]=(present[i]!=0);
+        std::vector<long> prmv(prm.size());        for (R_xlen_t i=0;i<prm.size();++i)          prmv[i]=prm[i];
+        std::vector<int>  grpv(grp.size());        for (R_xlen_t i=0;i<grp.size();++i)          grpv[i]=grp[i];
+
+        return wrapResult(mgcca::reliability::sensitivity_from_gram_matrix(
+            toEigen(G), m2f, toEigen(Rr), toEigen(Sm), toEigen(C), alpha,
+            pres, prmv, grpv, neg_tol));
+    } catch (std::exception& e) {
+        Rf_error("reliability_sensitivity_gram_matrix error: %s", e.what());
     }
     return R_NilValue;
 }

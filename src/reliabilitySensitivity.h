@@ -31,11 +31,15 @@ struct SensResult {
     double e_qmm;                           // ||Q[mids,mids] - G_K1|| / ||G_K1||  (== 0 by construction)
 };
 
-// K2 production kernel. G_K1 (n_meth x n_meth) is read from HDF5; mids_to_fit[i] is the 0-based
-// fit-row index of K1 participant i (K1 column order). present (n_fit), prm (n_pr, 0-based fit
-// indices), grp (n_pr, 0-based cohort group id). Rr n_fit x L, Sm n_fit x (n_fit-L), C L x (n_fit-L).
-inline SensResult sensitivity_from_gram(const std::string& file, const std::string& group,
-                                        const std::string& ds,
+// K2 production kernel. G_K1 (n_meth x n_meth) is the sealed present-only Gram, supplied as a
+// matrix; mids_to_fit[i] is the 0-based fit-row index of K1 participant i (K1 column order).
+// present (n_fit), prm (n_pr, 0-based fit indices), grp (n_pr, 0-based cohort group id).
+// Rr n_fit x L, Sm n_fit x (n_fit-L), C L x (n_fit-L).
+//
+// WHERE THE GRAM COMES FROM IS NOT PART OF THE KERNEL. The caller either hands it over or has
+// it read from HDF5 by the wrapper below; the arithmetic is this one body either way, so the
+// two routes cannot drift apart.
+inline SensResult sensitivity_from_gram_matrix(const Eigen::MatrixXd& G,
                                         const std::vector<long>& mids_to_fit,
                                         const Eigen::MatrixXd& Rr, const Eigen::MatrixXd& Sm,
                                         const Eigen::MatrixXd& C, double alpha,
@@ -43,8 +47,6 @@ inline SensResult sensitivity_from_gram(const std::string& file, const std::stri
                                         const std::vector<long>& prm,
                                         const std::vector<int>& grp,
                                         double neg_tol = 1e-8) {
-    // --- read the sealed K1 Gram ---
-    Eigen::MatrixXd G = mgcca::read_full(file, group, ds);        // n_meth x n_meth
     const long n_meth = (long)G.rows();
     if (G.cols() != n_meth) throw std::runtime_error("K1 Gram is not square");
     if (!G.allFinite()) throw std::runtime_error("K1 Gram has non-finite entries");
@@ -119,6 +121,21 @@ inline SensResult sensitivity_from_gram(const std::string& file, const std::stri
 
     R.sym_err = sym; R.n_fit = n_fit; R.n_pr = n_pr; R.L = L; R.n_meth = n_meth; R.n_grp = n_grp;
     return R;
+}
+
+// Same kernel, with the sealed K1 Gram read from HDF5 first.
+inline SensResult sensitivity_from_gram(const std::string& file, const std::string& group,
+                                        const std::string& ds,
+                                        const std::vector<long>& mids_to_fit,
+                                        const Eigen::MatrixXd& Rr, const Eigen::MatrixXd& Sm,
+                                        const Eigen::MatrixXd& C, double alpha,
+                                        const std::vector<char>& present,
+                                        const std::vector<long>& prm,
+                                        const std::vector<int>& grp,
+                                        double neg_tol = 1e-8) {
+    Eigen::MatrixXd G = mgcca::read_full(file, group, ds);        // n_meth x n_meth
+    return sensitivity_from_gram_matrix(G, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp,
+                                        neg_tol);
 }
 
 }  // namespace reliability

@@ -34,6 +34,84 @@ inline void check_fail_closed(BigDataStatMeth::hdf5Dataset* d,
                                  "'; refusing to overwrite it (fail-closed)");
 }
 
+// ---------------------------------------------------------------------------
+// Readers that work on a file SOMEBODY ELSE holds open.
+//
+// The helpers below take an open BigDataStatMeth::hdf5File and bind their
+// dataset to it, so a caller that needs several datasets opens the file once
+// and keeps that one handle for all of them. Each dataset object closes only
+// itself; the file is released by whoever opened it.
+
+// Refuse a path the file does not hold, BEFORE any dataset object exists.
+//
+// Two things make this a guard rather than a courtesy. hdf5Dataset::
+// openDataset() reports a missing dataset with Rf_error(), which is an R
+// longjmp and not a C++ exception: it does not unwind the C++ stack, so the
+// file handle the calling frame owns would stay open for the rest of the
+// session. And the dataset constructor CREATES the group it is given when the
+// file does not carry one, which a reader must never do. Both are settled here,
+// against the open file, before anything of ours is bound to it.
+inline void check_readable(BigDataStatMeth::hdf5File* f, const std::string& grp,
+                           const std::string& ds, const char* who) {
+    if (f == nullptr || f->getFileptr() == nullptr)
+        throw std::runtime_error(std::string(who) + ": the file is not open");
+    if (!BigDataStatMeth::exists_HDF5_element(f->getFileptr(), grp))
+        throw std::runtime_error(std::string(who) + ": '" + grp +
+                                 "' is not in the file");
+    if (!ds.empty() &&
+        !BigDataStatMeth::exists_HDF5_element(f->getFileptr(), grp + "/" + ds))
+        throw std::runtime_error(std::string(who) + ": '" + grp + "/" + ds +
+                                 "' is not in the file");
+}
+
+// Open one dataset on an already open file. The returned object does not own
+// the file: destroying it leaves the file open for the next dataset.
+inline std::unique_ptr<BigDataStatMeth::hdf5Dataset>
+open_on(BigDataStatMeth::hdf5File* f, const std::string& grp,
+        const std::string& ds, const char* who) {
+    check_readable(f, grp, ds, who);
+    std::unique_ptr<BigDataStatMeth::hdf5Dataset> d(
+        new BigDataStatMeth::hdf5Dataset(f, grp, ds, false));
+    d->openDataset();
+    if (d->getDatasetptr() == nullptr)
+        throw std::runtime_error(std::string(who) + ": cannot open '" + grp +
+                                 "/" + ds + "'");
+    return d;
+}
+
+// Read a full dataset straight into an R matrix in R-view order, on a file that
+// stays open. The values land in the R object itself, so a block read for R is
+// never copied through a second full matrix.
+inline Rcpp::NumericMatrix read_matrix(BigDataStatMeth::hdf5File* f,
+                                       const std::string& grp,
+                                       const std::string& ds) {
+    std::unique_ptr<BigDataStatMeth::hdf5Dataset> d =
+        open_on(f, grp, ds, "read_matrix");
+    const int nr = (int)d->nrows_r(), nc = (int)d->ncols_r();
+    Rcpp::NumericMatrix M(nr, nc);
+    std::vector<hsize_t> off = {0, 0}, cnt = {(hsize_t)nc, (hsize_t)nr},
+                         st = {1, 1}, bl = {1, 1};
+    d->readDatasetBlock(off, cnt, st, bl, &M[0]);
+    return M;
+}
+
+// The two dimname vectors of a dataset, each empty when the file carries none.
+inline Rcpp::List read_dimnames(BigDataStatMeth::hdf5File* f,
+                                const std::string& grp,
+                                const std::string& ds) {
+    std::unique_ptr<BigDataStatMeth::hdf5Dataset> d =
+        open_on(f, grp, ds, "read_dimnames");
+    return d->readDimnames();
+}
+
+// The rownames (individual IDs) of a dataset, on a file that stays open.
+inline Rcpp::CharacterVector read_rownames(BigDataStatMeth::hdf5File* f,
+                                           const std::string& grp,
+                                           const std::string& ds) {
+    Rcpp::List dn = read_dimnames(f, grp, ds);
+    return dn["rownames"];
+}
+
 // Read a full dataset into an Eigen matrix in R-view (column-major) order.
 inline Eigen::MatrixXd read_full(const std::string& fn, const std::string& grp,
                                  const std::string& ds) {

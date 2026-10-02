@@ -1,3 +1,11 @@
+# mgcca 0.99.6
+
+## Fixed
+
+- Every structure mgcca reads or writes in an HDF5 file now takes a single
+  file open. What is stored is unchanged; this removes the remaining read and
+  write failures seen on Windows.
+
 # mgcca 0.99.5
 
 ## Fixed

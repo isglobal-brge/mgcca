@@ -61,6 +61,64 @@ mgcca_list_group_rcpp <- function(filename, group) {
     .Call(`_mgcca_mgcca_list_group_rcpp`, filename, group)
 }
 
+#' Write a provenance manifest into one HDF5 file in a single open
+#'
+#' Writes \code{attrs} as attributes of \code{group} and, for each element of
+#' \code{dataset_attrs}, that element as attributes of the dataset named after
+#' it under \code{dataset_group}. The run-level facts and the per-table facts
+#' of one manifest therefore reach the file through a single open.
+#'
+#' @param filename Path to the HDF5 file.
+#' @param group Group the run-level attributes belong to.
+#' @param attrs Named list of run-level attribute values.
+#' @param dataset_group Group holding the datasets the per-table attributes
+#'   belong to, or \code{""} when there are none.
+#' @param dataset_attrs Named list, one named list of attribute values per
+#'   dataset, named after the datasets.
+#' @return Invisibly \code{NULL}; called for the side effect of writing the
+#'   manifest into the HDF5 file.
+#' @keywords internal
+mgcca_write_manifest_rcpp <- function(filename, group, attrs, dataset_group, dataset_attrs) {
+    invisible(.Call(`_mgcca_mgcca_write_manifest_rcpp`, filename, group, attrs, dataset_group, dataset_attrs))
+}
+
+#' Read a provenance manifest from one HDF5 file in a single open
+#'
+#' Reads the attributes of \code{group} and the attributes of every dataset
+#' under \code{dataset_group}, through one open of \code{filename}. A
+#' \code{dataset_group} the file does not carry yields no per-dataset
+#' attributes rather than an error, since a file can hold a run-level manifest
+#' and no per-table one.
+#'
+#' @param filename Path to the HDF5 file.
+#' @param group Group the run-level attributes belong to.
+#' @param dataset_group Group holding the datasets whose attributes are wanted,
+#'   or \code{""} to read none.
+#' @return A list with \code{group} (the run-level attributes) and
+#'   \code{datasets} (one named list of attribute values per dataset, named
+#'   after the datasets).
+#' @keywords internal
+mgcca_read_manifest_rcpp <- function(filename, group, dataset_group) {
+    .Call(`_mgcca_mgcca_read_manifest_rcpp`, filename, group, dataset_group)
+}
+
+#' Read a stored availability audit from one HDF5 file in a single open
+#'
+#' Reads the attributes of \code{group} and every table of \code{tables} that
+#' the file carries, through one open of \code{filename}.
+#'
+#' @param filename Path to the HDF5 file holding the audit.
+#' @param group Group the audit was written to.
+#' @param tables Names of the audit tables to read. A name the file does not
+#'   carry comes back as \code{NULL}, so the caller reports what is missing
+#'   rather than failing on the first gap.
+#' @return A list with \code{attrs} (the group's attributes) and \code{tables}
+#'   (one matrix per table, with its dimnames), named after \code{tables}.
+#' @keywords internal
+mgcca_read_audit_rcpp <- function(filename, group, tables) {
+    .Call(`_mgcca_mgcca_read_audit_rcpp`, filename, group, tables)
+}
+
 #' Save an availability audit into one HDF5 file in a single open
 #'
 #' Creates the audit group if it is missing, writes every table of
@@ -140,6 +198,54 @@ mgcca_rcpp <- function(filename, in_group, datasets, nfac, inv_method, lambda = 
     .Call(`_mgcca_mgcca_rcpp`, filename, in_group, datasets, nfac, inv_method, lambda, scores, scale, route, tmp_group, final_group, threads)
 }
 
+#' Read several datasets of one HDF5 file in a single open
+#'
+#' Returns the values and the participant row names of every dataset named in
+#' \code{datasets}, read through one open of \code{filename}.
+#'
+#' @param filename Path to the HDF5 file.
+#' @param group Group holding the datasets.
+#' @param datasets Names of the datasets to read, in the order they are wanted.
+#' @return A list with \code{values} (one matrix per dataset) and
+#'   \code{rownames} (one character vector per dataset, empty where the file
+#'   carries none), both named after \code{datasets}.
+#' @keywords internal
+mgcca_read_blocks_rcpp <- function(filename, group, datasets) {
+    .Call(`_mgcca_mgcca_read_blocks_rcpp`, filename, group, datasets)
+}
+
+#' Read the row names of several datasets of one HDF5 file in a single open
+#'
+#' Reads the participant identifiers of every dataset named in
+#' \code{datasets} without reading one value of any of them.
+#'
+#' @param filename Path to the HDF5 file.
+#' @param group Group holding the datasets.
+#' @param datasets Names of the datasets whose row names are wanted.
+#' @return A list of character vectors named after \code{datasets}, each empty
+#'   where the file carries no row names for that dataset.
+#' @keywords internal
+mgcca_read_rownames_rcpp <- function(filename, group, datasets) {
+    .Call(`_mgcca_mgcca_read_rownames_rcpp`, filename, group, datasets)
+}
+
+#' Read the dimensions of several datasets of one HDF5 file in a single open
+#'
+#' Reports the shape each dataset has as R sees it. A dataset the file does not
+#' carry is reported as \code{0} by \code{0} rather than raised as an error, so
+#' a caller sizing a choice over a set of datasets is not stopped by one that
+#' is absent.
+#'
+#' @param filename Path to the HDF5 file.
+#' @param group Group holding the datasets.
+#' @param datasets Names of the datasets to measure.
+#' @return A list with the numeric vectors \code{nrow} and \code{ncol}, one
+#'   entry per dataset, named after \code{datasets}.
+#' @keywords internal
+mgcca_read_dimensions_rcpp <- function(filename, group, datasets) {
+    .Call(`_mgcca_mgcca_read_dimensions_rcpp`, filename, group, datasets)
+}
+
 #' K1: present-only, feature-streamed participant block Gram (HDF5)
 #' @return A list with the participant Gram \code{G} and its \code{ids}, the
 #'   effective sizes (\code{p_eff}, \code{n_pr}, \code{N_all}), the streaming
@@ -198,6 +304,24 @@ reliability_query <- function(V, mu, zstar, L) {
 #' @keywords internal
 reliability_sensitivity_gram <- function(file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol = 1e-8) {
     .Call(`_mgcca_reliability_sensitivity_gram`, file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol)
+}
+
+#' K2: the same accumulators with the Gram supplied as a matrix
+#'
+#' The sensitivity kernel reads one block's Gram once per query, so a run of Q
+#' queries over J blocks read the same Q x J datasets out of the same file,
+#' opening and closing it every time. The Grams are participant by participant
+#' -- small whatever the width of the block behind them -- so the caller reads
+#' them once and passes them here. The arithmetic is the same body as
+#' \code{reliability_sensitivity_gram}: only where the Gram came from differs.
+#'
+#' @param G The present-only participant Gram of the block.
+#' @return A list with the sensitivity accumulators \code{trtH} and \code{accX},
+#'   the symmetry residual \code{sym_err} and the sizes \code{n_pr},
+#'   \code{n_meth}, \code{n_grp}.
+#' @keywords internal
+reliability_sensitivity_gram_matrix <- function(G, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol = 1e-8) {
+    .Call(`_mgcca_reliability_sensitivity_gram_matrix`, G, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol)
 }
 
 #' K3b variant-C Gram-C block (HDF5-in/HDF5-out via BigDataStatMeth): H*G[O,O]*H embedded

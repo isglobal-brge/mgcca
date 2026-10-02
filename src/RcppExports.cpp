@@ -65,6 +65,46 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mgcca_write_manifest_rcpp
+void mgcca_write_manifest_rcpp(std::string filename, std::string group, Rcpp::List attrs, std::string dataset_group, Rcpp::List dataset_attrs);
+RcppExport SEXP _mgcca_mgcca_write_manifest_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP attrsSEXP, SEXP dataset_groupSEXP, SEXP dataset_attrsSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type attrs(attrsSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset_group(dataset_groupSEXP);
+    Rcpp::traits::input_parameter< Rcpp::List >::type dataset_attrs(dataset_attrsSEXP);
+    mgcca_write_manifest_rcpp(filename, group, attrs, dataset_group, dataset_attrs);
+    return R_NilValue;
+END_RCPP
+}
+// mgcca_read_manifest_rcpp
+Rcpp::List mgcca_read_manifest_rcpp(std::string filename, std::string group, std::string dataset_group);
+RcppExport SEXP _mgcca_mgcca_read_manifest_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP dataset_groupSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::string >::type dataset_group(dataset_groupSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_read_manifest_rcpp(filename, group, dataset_group));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mgcca_read_audit_rcpp
+Rcpp::List mgcca_read_audit_rcpp(std::string filename, std::string group, std::vector<std::string> tables);
+RcppExport SEXP _mgcca_mgcca_read_audit_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP tablesSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type tables(tablesSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_read_audit_rcpp(filename, group, tables));
+    return rcpp_result_gen;
+END_RCPP
+}
 // mgcca_save_audit_rcpp
 void mgcca_save_audit_rcpp(std::string filename, std::string group, Rcpp::List tables, Rcpp::List attrs);
 RcppExport SEXP _mgcca_mgcca_save_audit_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP tablesSEXP, SEXP attrsSEXP) {
@@ -142,6 +182,45 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< std::string >::type final_group(final_groupSEXP);
     Rcpp::traits::input_parameter< Rcpp::Nullable<int> >::type threads(threadsSEXP);
     rcpp_result_gen = Rcpp::wrap(mgcca_rcpp(filename, in_group, datasets, nfac, inv_method, lambda, scores, scale, route, tmp_group, final_group, threads));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mgcca_read_blocks_rcpp
+Rcpp::List mgcca_read_blocks_rcpp(std::string filename, std::string group, std::vector<std::string> datasets);
+RcppExport SEXP _mgcca_mgcca_read_blocks_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP datasetsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type datasets(datasetsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_read_blocks_rcpp(filename, group, datasets));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mgcca_read_rownames_rcpp
+Rcpp::List mgcca_read_rownames_rcpp(std::string filename, std::string group, std::vector<std::string> datasets);
+RcppExport SEXP _mgcca_mgcca_read_rownames_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP datasetsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type datasets(datasetsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_read_rownames_rcpp(filename, group, datasets));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mgcca_read_dimensions_rcpp
+Rcpp::List mgcca_read_dimensions_rcpp(std::string filename, std::string group, std::vector<std::string> datasets);
+RcppExport SEXP _mgcca_mgcca_read_dimensions_rcpp(SEXP filenameSEXP, SEXP groupSEXP, SEXP datasetsSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    Rcpp::traits::input_parameter< std::string >::type group(groupSEXP);
+    Rcpp::traits::input_parameter< std::vector<std::string> >::type datasets(datasetsSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_read_dimensions_rcpp(filename, group, datasets));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -243,6 +322,26 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type grp(grpSEXP);
     Rcpp::traits::input_parameter< double >::type neg_tol(neg_tolSEXP);
     rcpp_result_gen = Rcpp::wrap(reliability_sensitivity_gram(file, group, dataset, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol));
+    return rcpp_result_gen;
+END_RCPP
+}
+// reliability_sensitivity_gram_matrix
+Rcpp::List reliability_sensitivity_gram_matrix(Rcpp::NumericMatrix G, Rcpp::IntegerVector mids_to_fit, Rcpp::NumericMatrix Rr, Rcpp::NumericMatrix Sm, Rcpp::NumericMatrix C, double alpha, Rcpp::LogicalVector present, Rcpp::IntegerVector prm, Rcpp::IntegerVector grp, double neg_tol);
+RcppExport SEXP _mgcca_reliability_sensitivity_gram_matrix(SEXP GSEXP, SEXP mids_to_fitSEXP, SEXP RrSEXP, SEXP SmSEXP, SEXP CSEXP, SEXP alphaSEXP, SEXP presentSEXP, SEXP prmSEXP, SEXP grpSEXP, SEXP neg_tolSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type G(GSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type mids_to_fit(mids_to_fitSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Rr(RrSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type Sm(SmSEXP);
+    Rcpp::traits::input_parameter< Rcpp::NumericMatrix >::type C(CSEXP);
+    Rcpp::traits::input_parameter< double >::type alpha(alphaSEXP);
+    Rcpp::traits::input_parameter< Rcpp::LogicalVector >::type present(presentSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type prm(prmSEXP);
+    Rcpp::traits::input_parameter< Rcpp::IntegerVector >::type grp(grpSEXP);
+    Rcpp::traits::input_parameter< double >::type neg_tol(neg_tolSEXP);
+    rcpp_result_gen = Rcpp::wrap(reliability_sensitivity_gram_matrix(G, mids_to_fit, Rr, Sm, C, alpha, present, prm, grp, neg_tol));
     return rcpp_result_gen;
 END_RCPP
 }
@@ -405,17 +504,24 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcca_mgcca_write_attrs_rcpp", (DL_FUNC) &_mgcca_mgcca_write_attrs_rcpp, 4},
     {"_mgcca_mgcca_read_attrs_rcpp", (DL_FUNC) &_mgcca_mgcca_read_attrs_rcpp, 3},
     {"_mgcca_mgcca_list_group_rcpp", (DL_FUNC) &_mgcca_mgcca_list_group_rcpp, 2},
+    {"_mgcca_mgcca_write_manifest_rcpp", (DL_FUNC) &_mgcca_mgcca_write_manifest_rcpp, 5},
+    {"_mgcca_mgcca_read_manifest_rcpp", (DL_FUNC) &_mgcca_mgcca_read_manifest_rcpp, 3},
+    {"_mgcca_mgcca_read_audit_rcpp", (DL_FUNC) &_mgcca_mgcca_read_audit_rcpp, 3},
     {"_mgcca_mgcca_save_audit_rcpp", (DL_FUNC) &_mgcca_mgcca_save_audit_rcpp, 4},
     {"_mgcca_mgcca_cor_ave_rcpp", (DL_FUNC) &_mgcca_mgcca_cor_ave_rcpp, 5},
     {"_mgcca_mgcca_eigen_rcpp", (DL_FUNC) &_mgcca_mgcca_eigen_rcpp, 6},
     {"_mgcca_mgcca_getK_rcpp", (DL_FUNC) &_mgcca_mgcca_getK_rcpp, 4},
     {"_mgcca_mgcca_rcpp", (DL_FUNC) &_mgcca_mgcca_rcpp, 12},
+    {"_mgcca_mgcca_read_blocks_rcpp", (DL_FUNC) &_mgcca_mgcca_read_blocks_rcpp, 3},
+    {"_mgcca_mgcca_read_rownames_rcpp", (DL_FUNC) &_mgcca_mgcca_read_rownames_rcpp, 3},
+    {"_mgcca_mgcca_read_dimensions_rcpp", (DL_FUNC) &_mgcca_mgcca_read_dimensions_rcpp, 3},
     {"_mgcca_reliability_gram_hdf5", (DL_FUNC) &_mgcca_reliability_gram_hdf5, 10},
     {"_mgcca_reliability_gram_block", (DL_FUNC) &_mgcca_reliability_gram_block, 7},
     {"_mgcca_reliability_reference_fit", (DL_FUNC) &_mgcca_reliability_reference_fit, 4},
     {"_mgcca_reliability_block_inputs", (DL_FUNC) &_mgcca_reliability_block_inputs, 4},
     {"_mgcca_reliability_query", (DL_FUNC) &_mgcca_reliability_query, 4},
     {"_mgcca_reliability_sensitivity_gram", (DL_FUNC) &_mgcca_reliability_sensitivity_gram, 12},
+    {"_mgcca_reliability_sensitivity_gram_matrix", (DL_FUNC) &_mgcca_reliability_sensitivity_gram_matrix, 10},
     {"_mgcca_reliability_gramc_block_hdf5", (DL_FUNC) &_mgcca_reliability_gramc_block_hdf5, 7},
     {"_mgcca_reliability_gramc_block_mem", (DL_FUNC) &_mgcca_reliability_gramc_block_mem, 2},
     {"_mgcca_reliability_subspace_overlap", (DL_FUNC) &_mgcca_reliability_subspace_overlap, 2},

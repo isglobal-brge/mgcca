@@ -35,19 +35,23 @@
     # to be "MGCCA_IN", which is only the default and is user-configurable.
     if (!is.null(input_group)) run$input_group <- as.character(input_group)
     if (!is.null(scale))       run$scale       <- as.integer(isTRUE(scale))
-    mgcca_write_attrs_rcpp(res$filename, fg, "", run)
-    BigDataStatMeth::hdf5_close_all()
 
     rd <- res$route_dual                      # named logical vector or NULL
+    per <- vector("list", length(datasets))
+    names(per) <- datasets
     for (i in seq_along(datasets)) {
         ds  <- datasets[i]
         val <- if (!is.null(rd) && ds %in% names(rd)) rd[[ds]] else rd[i]
-        per <- list(route_dual = as.integer(isTRUE(val)))
+        p <- list(route_dual = as.integer(isTRUE(val)))
         if (identical(as.character(method), "penalized") && !is.null(lambda))
-            per$lambda <- as.numeric(lambda[[min(i, length(lambda))]])
-        mgcca_write_attrs_rcpp(res$filename, paste0(fg, "/corsY"), ds, per)
-        BigDataStatMeth::hdf5_close_all()
+            p$lambda <- as.numeric(lambda[[min(i, length(lambda))]])
+        per[[i]] <- p
     }
+    ## The run-level facts and the per-table ones reach the file through ONE
+    ## open. Written one call at a time they were J+1 opens of the same file,
+    ## each followed by a barrier that releases BigDataStatMeth's handles and
+    ## never saw mgcca's. This runs on every file-backed fit.
+    mgcca_write_manifest_rcpp(res$filename, fg, run, paste0(fg, "/corsY"), per)
     invisible(TRUE)
 }
 
@@ -55,7 +59,6 @@
 ## files written before the manifest existed). Drops the .<ds>_dimnames helpers.
 .mgcca_discover_datasets <- function(file, group) {
     kids <- mgcca_list_group_rcpp(file, paste0(group, "/corsY"))
-    BigDataStatMeth::hdf5_close_all()
     kids <- kids[!grepl("^\\.", kids)]
     as.character(kids)
 }
@@ -108,9 +111,11 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
         stop("'file' must be a single HDF5 file path")
     if (!file.exists(file)) stop("HDF5 file not found: ", file)
 
-    man <- tryCatch(mgcca_read_attrs_rcpp(file, group, ""),
-                    error = function(e) list())
-    BigDataStatMeth::hdf5_close_all()
+    ## The manifest in one open: the run-level attributes and the per-table ones
+    ## together, the mirror of how .mgcca_write_manifest put them there.
+    got <- tryCatch(mgcca_read_manifest_rcpp(file, group, paste0(group, "/corsY")),
+                    error = function(e) NULL)
+    man <- if (is.null(got)) list() else got$group
 
     if (length(man) && !is.null(man$datasets)) {
         datasets <- as.character(man$datasets)
@@ -118,10 +123,7 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
         route_dual <- stats::setNames(rep(NA, length(datasets)), datasets)
         lambda     <- stats::setNames(rep(NA_real_, length(datasets)), datasets)
         for (ds in datasets) {
-            pa <- tryCatch(
-                mgcca_read_attrs_rcpp(file, paste0(group, "/corsY"), ds),
-                error = function(e) list())
-            BigDataStatMeth::hdf5_close_all()
+            pa <- got$datasets[[ds]]
             if (!is.null(pa$route_dual)) route_dual[ds] <- as.logical(pa$route_dual)
             if (!is.null(pa$lambda))     lambda[ds]     <- as.numeric(pa$lambda)
         }
@@ -163,7 +165,6 @@ mgcca_load <- function(file, group = "FINAL_RESULTS") {
                  "' in ", file)
         top <- tryCatch(mgcca_list_group_rcpp(file, group),
                         error = function(e) character(0))
-        BigDataStatMeth::hdf5_close_all()
         # No manifest at all: provenance is unknown. `input_group` stays NA on
         # purpose so the reliability entry points can fail closed on it; this
         # function stays silent, exactly as before.

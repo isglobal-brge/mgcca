@@ -62,14 +62,6 @@
 
 
 ## ---- small HDF5 readers ----------------------------------------------------
-## Read a 1 x 1 (or first) numeric value; NA_real_ if it is not there.
-.mgcca_read_scalar <- function(filename, path) {
-    hm <- BigDataStatMeth::hdf5_matrix(filename, path)
-    on.exit(if (is.function(hm$close)) try(hm$close(), silent = TRUE), add = TRUE)
-    v <- as.numeric(as.matrix(hm))
-    if (length(v)) v[1] else NA_real_
-}
-
 ## Presence matrix (m x J logical): the non-zero entries of the diagonal of K_j,
 ## i.e. exactly the individuals table j holds. This is the same source the C++
 ## layer uses for every per-block statistic (mgcca::present_rows), so the report
@@ -96,15 +88,35 @@
 ## ---- (1) external spectral gap ---------------------------------------------
 ## The diagnostics run_eigen wrote for this fit. NULL when the file does not
 ## carry them (a results-only file, or one written before they existed).
+## Three one-by-one datasets of the same group. Every handle is HELD until the
+## last of them has been read and only then released, the same hold-then-sweep
+## shape .mgcca_presence uses: read one at a time, each handle was shut before
+## the next was opened, so three numbers cost three close-and-reopen cycles of
+## the same file, and this runs twice per fit.
+##
+## It stays on BigDataStatMeth's reader rather than moving to one of mgcca's own
+## single-open readers, and that is a constraint rather than a preference:
+## mgcca_results() calls this while it still holds its own BigDataStatMeth
+## handles on the file, and a file held through one statically linked HDF5
+## instance cannot be opened through the other -- the second open is refused
+## outright. Reading here through the instance that already holds the file is
+## what makes the diagnostic available at all.
 .mgcca_eigen_report <- function(filename, group = "EIGEN/MKsum05") {
-    out <- tryCatch(
-        list(gap      = .mgcca_read_scalar(filename, paste0(group, "/eiggap")),
-             gap_rel  = .mgcca_read_scalar(filename, paste0(group, "/eiggap_rel")),
-             residual = .mgcca_read_scalar(filename, paste0(group, "/eig_residual"))),
-        error = function(e) NULL)
-    if (is.null(out) || all(vapply(out, function(v) !is.finite(v), logical(1))))
-        return(out)
-    out
+    handles <- list()
+    on.exit({
+        for (h in handles)
+            if (!is.null(h) && is.function(h$close)) try(h$close(), silent = TRUE)
+    }, add = TRUE)
+    scalar <- function(name) {
+        hm <- BigDataStatMeth::hdf5_matrix(filename, paste0(group, "/", name))
+        handles[[length(handles) + 1L]] <<- hm
+        v <- as.numeric(as.matrix(hm))
+        if (length(v)) v[1] else NA_real_
+    }
+    tryCatch(list(gap      = scalar("eiggap"),
+                  gap_rel  = scalar("eiggap_rel"),
+                  residual = scalar("eig_residual")),
+             error = function(e) NULL)
 }
 
 ## TRUE when the external gap says the leading subspace is not identified.
