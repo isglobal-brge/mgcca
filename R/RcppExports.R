@@ -170,6 +170,42 @@ mgcca_getK_rcpp <- function(filename, in_group, datasets, out_group = "MGCCA_TMP
     .Call(`_mgcca_mgcca_getK_rcpp`, filename, in_group, datasets, out_group)
 }
 
+#' Open one HDF5 file and keep it open
+#'
+#' Opens \code{filename} and returns the open handle, which stays open until
+#' it is released. The file is not read and not written.
+#'
+#' @param filename Path to the HDF5 file, exactly as every operation of the
+#'   same analysis will name it.
+#' @return An external pointer to the open file.
+#' @keywords internal
+mgcca_hold_file_rcpp <- function(filename) {
+    .Call(`_mgcca_mgcca_hold_file_rcpp`, filename)
+}
+
+#' Release a held HDF5 file handle
+#'
+#' Closes the file the handle holds and invalidates the handle. A handle that
+#' holds nothing is left alone, so this can be called more than once.
+#'
+#' @param handle An external pointer returned by \code{mgcca_hold_file_rcpp}.
+#' @return Invisibly \code{NULL}; called for the side effect of closing the
+#'   file.
+#' @keywords internal
+mgcca_release_file_rcpp <- function(handle) {
+    invisible(.Call(`_mgcca_mgcca_release_file_rcpp`, handle))
+}
+
+#' Whether a handle still holds an HDF5 file open
+#'
+#' @param handle An external pointer returned by \code{mgcca_hold_file_rcpp}.
+#' @return \code{TRUE} while the handle holds an open file, \code{FALSE} once
+#'   it has been released.
+#' @keywords internal
+mgcca_file_is_open_rcpp <- function(handle) {
+    .Call(`_mgcca_mgcca_file_is_open_rcpp`, handle)
+}
+
 #' MGCCA over HDF5 (single-call C++ orchestrator)
 #'
 #' @param filename HDF5 file with input tables already written under \code{in_group}.

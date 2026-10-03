@@ -113,6 +113,7 @@ mgcca_results <- function(x, datasets = NULL, final_group = NULL,
 
     open_handles <- list()
     read_mat <- function(path) {
+        .mgcca_refuse_held_file(filename, "mgcca_results")
         hm <- BigDataStatMeth::hdf5_matrix(filename, path)
         open_handles[[length(open_handles) + 1L]] <<- hm
         m  <- as.matrix(hm)
@@ -136,7 +137,7 @@ mgcca_results <- function(x, datasets = NULL, final_group = NULL,
     try_per_table <- function(sub) {
         out <- lapply(datasets, function(ds)
             tryCatch(read_mat(paste0(final_group, "/", sub, "/", ds)),
-                     error = function(e) NULL))
+                     error = .mgcca_rethrow_held_file))
         if (all(vapply(out, is.null, logical(1)))) return(NULL)
         names(out) <- datasets
         out

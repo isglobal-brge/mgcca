@@ -163,6 +163,38 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// mgcca_hold_file_rcpp
+SEXP mgcca_hold_file_rcpp(std::string filename);
+RcppExport SEXP _mgcca_mgcca_hold_file_rcpp(SEXP filenameSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< std::string >::type filename(filenameSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_hold_file_rcpp(filename));
+    return rcpp_result_gen;
+END_RCPP
+}
+// mgcca_release_file_rcpp
+void mgcca_release_file_rcpp(SEXP handle);
+RcppExport SEXP _mgcca_mgcca_release_file_rcpp(SEXP handleSEXP) {
+BEGIN_RCPP
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type handle(handleSEXP);
+    mgcca_release_file_rcpp(handle);
+    return R_NilValue;
+END_RCPP
+}
+// mgcca_file_is_open_rcpp
+bool mgcca_file_is_open_rcpp(SEXP handle);
+RcppExport SEXP _mgcca_mgcca_file_is_open_rcpp(SEXP handleSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< SEXP >::type handle(handleSEXP);
+    rcpp_result_gen = Rcpp::wrap(mgcca_file_is_open_rcpp(handle));
+    return rcpp_result_gen;
+END_RCPP
+}
 // mgcca_rcpp
 Rcpp::List mgcca_rcpp(std::string filename, std::string in_group, std::vector<std::string> datasets, int nfac, int inv_method, Rcpp::Nullable<std::vector<double>> lambda, bool scores, bool scale, std::string route, std::string tmp_group, std::string final_group, Rcpp::Nullable<int> threads);
 RcppExport SEXP _mgcca_mgcca_rcpp(SEXP filenameSEXP, SEXP in_groupSEXP, SEXP datasetsSEXP, SEXP nfacSEXP, SEXP inv_methodSEXP, SEXP lambdaSEXP, SEXP scoresSEXP, SEXP scaleSEXP, SEXP routeSEXP, SEXP tmp_groupSEXP, SEXP final_groupSEXP, SEXP threadsSEXP) {
@@ -511,6 +543,9 @@ static const R_CallMethodDef CallEntries[] = {
     {"_mgcca_mgcca_cor_ave_rcpp", (DL_FUNC) &_mgcca_mgcca_cor_ave_rcpp, 5},
     {"_mgcca_mgcca_eigen_rcpp", (DL_FUNC) &_mgcca_mgcca_eigen_rcpp, 6},
     {"_mgcca_mgcca_getK_rcpp", (DL_FUNC) &_mgcca_mgcca_getK_rcpp, 4},
+    {"_mgcca_mgcca_hold_file_rcpp", (DL_FUNC) &_mgcca_mgcca_hold_file_rcpp, 1},
+    {"_mgcca_mgcca_release_file_rcpp", (DL_FUNC) &_mgcca_mgcca_release_file_rcpp, 1},
+    {"_mgcca_mgcca_file_is_open_rcpp", (DL_FUNC) &_mgcca_mgcca_file_is_open_rcpp, 1},
     {"_mgcca_mgcca_rcpp", (DL_FUNC) &_mgcca_mgcca_rcpp, 12},
     {"_mgcca_mgcca_read_blocks_rcpp", (DL_FUNC) &_mgcca_mgcca_read_blocks_rcpp, 3},
     {"_mgcca_mgcca_read_rownames_rcpp", (DL_FUNC) &_mgcca_mgcca_read_rownames_rcpp, 3},

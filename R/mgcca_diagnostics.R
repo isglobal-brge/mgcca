@@ -73,6 +73,7 @@
             if (!is.null(h) && is.function(h$close)) try(h$close(), silent = TRUE)
     }, add = TRUE)
     cols <- lapply(datasets, function(ds) {
+        .mgcca_refuse_held_file(filename, ".mgcca_presence")
         hm <- BigDataStatMeth::hdf5_matrix(filename, paste0(tmp_group, "/K/", ds))
         handles[[length(handles) + 1L]] <<- hm
         as.numeric(as.matrix(hm))
@@ -108,15 +109,19 @@
             if (!is.null(h) && is.function(h$close)) try(h$close(), silent = TRUE)
     }, add = TRUE)
     scalar <- function(name) {
+        .mgcca_refuse_held_file(filename, ".mgcca_eigen_report")
         hm <- BigDataStatMeth::hdf5_matrix(filename, paste0(group, "/", name))
         handles[[length(handles) + 1L]] <<- hm
         v <- as.numeric(as.matrix(hm))
         if (length(v)) v[1] else NA_real_
     }
+    # A file that does not carry them gives NULL; a file mgcca itself is
+    # holding open is a caller's mistake and is reported, not turned into a
+    # missing diagnostic.
     tryCatch(list(gap      = scalar("eiggap"),
                   gap_rel  = scalar("eiggap_rel"),
                   residual = scalar("eig_residual")),
-             error = function(e) NULL)
+             error = .mgcca_rethrow_held_file)
 }
 
 ## TRUE when the external gap says the leading subspace is not identified.
@@ -156,7 +161,7 @@
 ## J-column read and a J x J crossproduct whatever the size of the tables.
 .mgcca_overlap_report <- function(filename, datasets, tmp_group = "MGCCA_TMP") {
     P <- tryCatch(.mgcca_presence(filename, datasets, tmp_group),
-                  error = function(e) NULL)
+                  error = .mgcca_rethrow_held_file)
     .mgcca_overlap_core(P, datasets)
 }
 

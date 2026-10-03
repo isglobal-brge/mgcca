@@ -140,7 +140,12 @@ mgcca_stability <- function(x, method = c("subsample", "loco", "both"),
     if (!(fraction > 0 && fraction < 1))
         stop("`fraction` must lie strictly between 0 and 1", call. = FALSE)
 
-    ctx <- .mgcca_rel_context(x); ids <- ctx$ids; n <- length(ids)
+    ctx <- .mgcca_rel_context(x)
+    # ONE open for the whole analysis, release armed before the handle exists.
+    # See R/mgcca_file_handle.R.
+    on.exit(.mgcca_rel_release(ctx), add = TRUE)
+    ctx$handle <- .mgcca_rel_hold(ctx$file)
+    ids <- ctx$ids; n <- length(ids)
     G  <- if (is.null(group))  NULL else .mgcca_rel_group(group, ids)
     ST <- if (is.null(strata)) NULL else .mgcca_rel_group(strata, ids, min_size = 1L)
 

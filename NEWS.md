@@ -5,6 +5,9 @@
 - Every structure mgcca reads or writes in an HDF5 file now takes a single
   file open. What is stored is unchanged; this removes the remaining read and
   write failures seen on Windows.
+- One HDF5 file handle is now held open for the whole of `mgcca_sensitivity()`
+  and `mgcca_stability()`, removing the close-and-reopen cycles between their
+  file operations. Results are unchanged.
 
 # mgcca 0.99.5
 

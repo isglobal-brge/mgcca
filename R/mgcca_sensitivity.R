@@ -190,6 +190,12 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
     .mgcca_refuse_memory(x)          # in-memory fits have no source blocks on disk
     backend <- match.arg(backend)
     ctx <- .mgcca_rel_context(x)
+    # ONE open for the whole analysis. The release is armed BEFORE the handle
+    # exists, so no point of this function owns an open file without its
+    # cleanup already scheduled; releasing a context that holds nothing is a
+    # no-op. See R/mgcca_file_handle.R for what the held handle buys.
+    on.exit(.mgcca_rel_release(ctx), add = TRUE)
+    ctx$handle <- .mgcca_rel_hold(ctx$file)
     ids <- ctx$ids
 
     Q <- .mgcca_rel_query_matrix(query, ids)
@@ -373,6 +379,13 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
 # "mgcca" object carries only final results; its descriptor carries the file and
 # the input group. Anything missing is named, because "it did not work" is not
 # something a user can act on.
+#
+# It opens NOTHING. The caller arms the release of the held file handle before
+# taking it (see R/mgcca_file_handle.R), which is only an invariant if building
+# the context cannot leave a file open behind it.
+#
+# The context is an ENVIRONMENT, so the handle the caller puts in it afterwards
+# is the same handle the release scheduled before it sees.
 .mgcca_rel_context <- function(x) {
     if (!inherits(x, "mgcca"))
         stop("`x` must be a fitted object of class \"mgcca\". ",
@@ -403,11 +416,22 @@ mgcca_sensitivity <- function(x, query, group = NULL, covariates = NULL,
     lam <- if (!is.null(d$lambda) && length(d$lambda) == length(ds))
         as.numeric(d$lambda) else rep(0, length(ds))
 
-    list(file = d$filename, input_group = ig, datasets = ds, ids = ids,
-         L = L, lambda = lam,
-         provenance = list(file = d$filename, input_group = ig, datasets = ds,
-                           mgcca_version = d$mgcca_version, method = d$method,
-                           route = d$route, scale = d$scale))
+    ctx <- new.env(parent = emptyenv())
+    # Normalised ONCE, here. This is the only path token the held handle and
+    # every operation inside its window receive, so none of them can name the
+    # same file in a way the other cannot recognise. What the fit recorded is
+    # kept as it was, in the provenance.
+    ctx$file        <- normalizePath(d$filename, mustWork = FALSE)
+    ctx$input_group <- ig
+    ctx$datasets    <- ds
+    ctx$ids         <- ids
+    ctx$L           <- L
+    ctx$lambda      <- lam
+    ctx$handle      <- NULL
+    ctx$provenance  <- list(file = d$filename, input_group = ig, datasets = ds,
+                            mgcca_version = d$mgcca_version, method = d$method,
+                            route = d$route, scale = d$scale)
+    ctx
 }
 
 # ---- backend choice ---------------------------------------------------------

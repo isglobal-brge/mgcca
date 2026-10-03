@@ -58,8 +58,10 @@ mgcca_import_hdf5 <- function(x, filename, group = "MGCCA_IN", datasets = NULL,
         if (!file.exists(x))
             stop("'x' looks like an HDF5 path but the file does not exist: ", x)
         ds <- datasets
-        if (is.null(ds))
+        if (is.null(ds)) {
+            .mgcca_refuse_held_file(x, "mgcca_import_hdf5")
             ds <- BigDataStatMeth::bdgetDatasetsList_hdf5(filename = x, group = group)
+        }
         # Release any HDF5 handle opened while inspecting the file before
         # returning. The caller reopens the same file read-write, and on Windows
         # a handle still open in this process makes that reopen fail with "file
@@ -99,6 +101,7 @@ mgcca_import_hdf5 <- function(x, filename, group = "MGCCA_IN", datasets = NULL,
         m <- src$get(sel[k])
         if (is.null(rownames(m)))
             stop("table '", nms[k], "' has no rownames (individual IDs required)")
+        .mgcca_refuse_held_file(filename, "mgcca_import_hdf5")
         hm <- BigDataStatMeth::hdf5_create_matrix(
             filename = filename,
             dataset  = paste0(group, "/", nms[k]),
